@@ -195,6 +195,7 @@ class instrct_node {
         int load_info = -1;
         int parent_lv = -1;
         bool* invalid_ptr = NULL;
+        bool deprecated = false;
 
         restart_info temp_info;
         Active_Path partial_active_path;
@@ -273,8 +274,8 @@ class solver {
         deque<instrct_node> *local_pool = NULL;
         vector<bool> worksteal_info;
         vector<recur_state> recur_stack;
-        Active_Path cur_active_tree;
         Active_Allocator Allocator;
+        Active_Path cur_active_tree;
         bool stolen = false;
         bool abandon_work = false;
         bool abandon_share = false;
@@ -334,7 +335,7 @@ class solver {
         void initialize_node_sharing();
         void Thread_Selection();
         void Shared_Thread_Selection();
-        void Generate_SolverState(instrct_node& sequence_node, bool recycle_anodes);
+        void Generate_SolverState(instrct_node& sequence_node);
         void push_to_historytable(pair<boost::dynamic_bitset<>,int>& key,int lower_bound,HistoryNode** entry,bool backtracked);
         void assign_parameter(vector<string> setting);
         void check_workload_request(int i);

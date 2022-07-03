@@ -268,7 +268,7 @@ bool solver::HistoryUtilization(pair<boost::dynamic_bitset<>,int>& key,int* lowe
         if (enable_threadstop && active_thread > 0) {
             buffer_lock.lock();
             if (target_ID >= 0) {
-                if (request_buffer.front().target_thread != target_ID || request_buffer.front().target_depth > (int)problem_state.cur_solution.size()) {
+                if (request_buffer.empty() || request_buffer.front().target_thread != target_ID || request_buffer.front().target_depth > (int)problem_state.cur_solution.size()) {
                     num_stop[thread_id].val++;
                     request_buffer.push_front({request_type::STOP,problem_state.cur_solution.back(),(int)problem_state.cur_solution.size(),
                                             content.prefix_cost,bucket_location,target_ID});
@@ -327,6 +327,8 @@ bool solver::Wlkload_Request(int i) {
     bool terminate = true;
 
     if (i == problem_state.initial_depth && active_thread > 0) {
+        
+        if (time_out) return true;
 
         if (stop_init) {
             stop_init = false;
@@ -345,6 +347,7 @@ bool solver::Wlkload_Request(int i) {
                 }
             }
             if (psched_cnt == total_pcount) {
+                total_pcount = 0;
                 psched_cnt = 0;
                 cout << "Enabling Thread Restart" << endl;
                 *GPQ.Promise.enable = true;
@@ -353,18 +356,19 @@ bool solver::Wlkload_Request(int i) {
             ptselct_lock.unlock();
 
             GPQ_lock.lock();
-            sort(GPQ.Promise.space.back().begin(),GPQ.Promise.space.back().end(),Shared_pool_sort);
-            cout << "Total promise node count is " << GPQ.Promise.space.back().size() << endl;
+            if (!GPQ.Promise.is_empty()) sort(GPQ.Promise.space.back().begin(),GPQ.Promise.space.back().end(),Shared_pool_sort);
+            cout << "Thread " << thread_id << " finished insertion, total promise node count is " << GPQ.Promise.space.back().size() << endl;
             GPQ_lock.unlock();
         }
         
         if (speed_search) {
             cout << "Speed restart disabled by thread " << thread_id << " upon finished with workload" << endl;
             speed_search = false;
-            exploit_init = false;
+            if (exploit_init) exploit_init = false;
         }
 
         if (concentrate_lv == 0) {
+
             thread_load_mutex.lock();
             thread_load[thread_id].out_of_work = true;
             thread_load[thread_id].data_cnt = 0;
@@ -432,7 +436,7 @@ bool solver::Steal_Workload() {
     //Turn off thread selection if all of the threads are satisfied;
     if (!wrksteal_pool.empty()) {
         //auto pt1 = chrono::high_resolution_clock::now();
-        Generate_SolverState(wrksteal_pool.front(), true);
+        Generate_SolverState(wrksteal_pool.front());
         wrksteal_pool.pop_front();
         //auto pt2 = chrono::high_resolution_clock::now();
         //proc_time[thread_id] += chrono::duration_cast<std::chrono::microseconds>(pt2 - pt1).count();
@@ -538,6 +542,7 @@ void solver::CheckStop_Request() {
                 stop_sig = false;
                 stop_cnt = 0;
                 for (int i = 0; i < thread_total; i++) thread_load[i].stop_checked = false;
+                buffer_lock.unlock();
                 pause_lock.unlock();
                 return;
             }
@@ -581,34 +586,24 @@ void solver::ThreadStopDelete_Pool(int& target_depth) {
 
     GPQ_lock.lock();
 
-    for (unsigned k = 0; k < GPQ.Unknown.size(); k++) {
-        if (GPQ.Unknown[k].load_info >= best_cost || (compare_sequence(GPQ.Unknown[k].sequence,target_depth) && GPQ.Unknown[k].partial_active_path.check_deprecation_status(target_depth - 1))) {
-            GPQ.Unknown[k].partial_active_path.incre_children_cnt(&Allocator);
-            if (GPQ.Unknown[k].root_his_node != NULL) {
-                GPQ.Unknown[k].root_his_node->explored = true;
-            }
-            GPQ.Unknown.erase(GPQ.Unknown.begin() + k);
-        }
-    }
-
     for (unsigned k = 0; k < GPQ.Abandoned.size(); k++) {
-        if (GPQ.Abandoned[k].load_info >= best_cost || (compare_sequence(GPQ.Abandoned[k].sequence,target_depth) && GPQ.Abandoned[k].partial_active_path.check_deprecation_status(target_depth - 1))) {
-            GPQ.Abandoned[k].partial_active_path.incre_children_cnt(&Allocator);
+        if (!GPQ.Abandoned[k].deprecated && compare_sequence(GPQ.Abandoned[k].sequence,target_depth) && GPQ.Abandoned[k].partial_active_path.check_deprecation_status(target_depth - 1)) {
+            GPQ.Abandoned[k].partial_active_path.incre_children_cnt(Allocator);
             if (GPQ.Abandoned[k].root_his_node != NULL) {
                 GPQ.Abandoned[k].root_his_node->explored = true;
             }
-            GPQ.Abandoned.erase(GPQ.Abandoned.begin() + k);
+            GPQ.Abandoned[k].deprecated = true;
         }
     }
 
     for (unsigned i = 0; i < GPQ.Promise.space.size(); i++) {
         for (unsigned k = 0; k < GPQ.Promise.space[i].size(); k++) {
-            if (GPQ.Promise.space[i][k].load_info >= best_cost || (compare_sequence(GPQ.Promise.space[i][k].sequence,target_depth) && GPQ.Promise.space[i][k].partial_active_path.check_deprecation_status(target_depth - 1))) {
-                GPQ.Promise.space[i][k].partial_active_path.incre_children_cnt(&Allocator);
+            if (!GPQ.Promise.space[i][k].deprecated && compare_sequence(GPQ.Promise.space[i][k].sequence,target_depth) && GPQ.Promise.space[i][k].partial_active_path.check_deprecation_status(target_depth - 1)) {
+                GPQ.Promise.space[i][k].partial_active_path.incre_children_cnt(Allocator);
                 if (GPQ.Promise.space[i][k].root_his_node != NULL) {
                     GPQ.Promise.space[i][k].root_his_node->explored = true;
                 }
-                GPQ.Promise.space[i].erase(GPQ.Promise.space[i].begin() + k);
+                GPQ.Promise.space[i][k].deprecated = true;
             }
         }
     }
@@ -638,7 +633,7 @@ void solver::regenerate_hungstate() {
     return;
 }
 
-void solver::Generate_SolverState(instrct_node& sequence_node, bool recycle_anodes) {
+void solver::Generate_SolverState(instrct_node& sequence_node) {
     int taken_node = -1;
     int counter = 0;
     int size = sequence_node.sequence.size();
@@ -683,8 +678,7 @@ void solver::Generate_SolverState(instrct_node& sequence_node, bool recycle_anod
     problem_state.x_start = sequence_node.temp_info;
     current_hisnode = sequence_node.root_his_node;
     
-    if (recycle_anodes) cur_active_tree.clear(&Allocator);
-    cur_active_tree.reconstruct_path(sequence_node.partial_active_path,&Allocator);
+    cur_active_tree.generate_path(sequence_node.partial_active_path);
     cur_active_tree.set_threadID(thread_id, thread_total);
     if (current_hisnode != NULL && !current_hisnode->explored) {
         current_hisnode->active_threadID = thread_id;
@@ -709,7 +703,7 @@ bool solver::assign_workload(node& transfer_node, pool_dest destination, space_r
     int lb = transfer_node.lb;
 
     if (lb >= best_cost) {
-        cur_active_tree.incre_children_cnt(&Allocator);
+        cur_active_tree.incre_children_cnt(Allocator);
         if (temp_hisnode != NULL && temp_hisnode->active_threadID == thread_id) {
             temp_hisnode->explored = true;
         }
@@ -755,7 +749,7 @@ bool solver::push_to_pool(pool_dest decision, space_ranking problem_property) {
     lp_lock[thread_id].lck.lock();
     while (!local_pool->empty()) {
         if (local_pool->back().load_info >= best_cost) {
-            local_pool->back().partial_active_path.incre_children_cnt(&Allocator);
+            local_pool->back().partial_active_path.incre_children_cnt(Allocator);
             if (local_pool->back().root_his_node != NULL && local_pool->back().root_his_node->active_threadID == thread_id) {
                 local_pool->back().root_his_node->explored = true;
             }
@@ -933,7 +927,6 @@ void solver::Thread_Selection() {
     int max = 0;
     int id = -1;
     int unpromise_cnt = 0;
-    vector<int> recurring_promise_subspace;
     vector<int> restart_info;
     vector<int_64> temp_select;
     restart_info = vector<int>(thread_total, -1);
@@ -959,21 +952,28 @@ void solver::Thread_Selection() {
         return;
     }
 
-    for (int i = 0; i < thread_total; i++) restart_info[i] = thread_load[i].data_cnt;
+    for (int i = 0; i < thread_total; i++) {
+        restart_info[i] = thread_load[i].data_cnt;
+        cout << restart_info[i] << ",";
+    }
+    cout << endl;
 
     cout << "Selected threads are --> ";
+
+    double src_found_time = 0;
+    double dest_found_time = 0;
 
     for (int i = 0; i < promise_Tlimit; i++) {
         for (int j = 0; j < thread_total; j++) {
             if (restart_info[j] > 1) {
                 if (restart_info[j] > max) {
-                    recurring_promise_subspace.clear();
                     max = restart_info[j];
                     id = j;
                 }
                 else if (restart_info[j] == max) {
-                    if (recurring_promise_subspace.empty()) recurring_promise_subspace.push_back(j);
-                    recurring_promise_subspace.push_back(j);
+                    src_found_time = std::chrono::duration<double>(thread_load[id].found_time - start_time_limit).count();
+                    dest_found_time = std::chrono::duration<double>(thread_load[j].found_time - start_time_limit).count();
+                    if (dest_found_time > src_found_time) id = j;
                 }
             }
         }
@@ -1014,24 +1014,6 @@ void solver::Thread_Selection() {
     }
     ptselct_lock.unlock();
     
-    if (!temp_select.empty() && !recurring_promise_subspace.empty()) {
-        float time_max = 0;
-        cout << "Eneter Double Standard Selection" << endl;
-        for (unsigned k = 0; k < recurring_promise_subspace.size(); k++) {
-            cout << "thread " << recurring_promise_subspace[k] << " found solution at time " << std::chrono::duration<double>(thread_load[recurring_promise_subspace[k]].found_time - start_time_limit).count() << endl;
-            if (std::chrono::duration<double>(thread_load[recurring_promise_subspace[k]].found_time - start_time_limit).count() > time_max) {
-                id = recurring_promise_subspace[k];
-                time_max = std::chrono::duration<double>(thread_load[recurring_promise_subspace[k]].found_time - start_time_limit).count();
-            }
-        }
-        int_64 target;
-        target.val = id;
-        target.explored = false;
-        ptselct_lock.lock();
-        selectT_arr.push_back(target);
-        ptselct_lock.unlock();
-    }
-    
     promise_num = selectT_arr.size();
     Select_GroupMember(unpromise_cnt);
 
@@ -1067,8 +1049,10 @@ void solver::initialize_node_sharing() {
                     *GPQ.Promise.enable = false;
                     cout << "Thread " << thread_id << " exits sharing execution" << endl;
                 }
+                abandon_work = false;
+                abandon_share = false;
                 problem_state = recur_stack.back().state;
-                cur_active_tree = recur_stack.back().atree;
+                cur_active_tree.generate_path(recur_stack.back().atree);
                 recur_stack.pop_back();
                 current_hisnode = backup_curhisnode;
                 GPQ_lock.unlock();
@@ -1078,6 +1062,7 @@ void solver::initialize_node_sharing() {
 
             if (Grabbed) {
                 //Change variables for second restart
+                
                 thread_load_mutex.lock();
                 thread_load[thread_id].data_cnt = 0;
                 thread_load_mutex.unlock();
@@ -1086,9 +1071,6 @@ void solver::initialize_node_sharing() {
                 failed_cnt = 0;
                 enumerate(problem_state.initial_depth);
                 concentrate_lv--;
-                
-                //recycle previous used active nodes;
-                cur_active_tree.clear(&Allocator);
 
                 thread_load_mutex.lock();
                 //thread_load[thread_id].data_cnt = backup_gb_cnt;
@@ -1103,7 +1085,7 @@ void solver::initialize_node_sharing() {
                 time_out = true;
                 active_thread = 0;
                 problem_state = recur_stack.back().state;
-                cur_active_tree = recur_stack.back().atree;
+                cur_active_tree.generate_path(recur_stack.back().atree);
                 recur_stack.pop_back();
                 current_hisnode = backup_curhisnode;
                 return;
@@ -1111,7 +1093,7 @@ void solver::initialize_node_sharing() {
             Grabbed = false;
         }
         problem_state = recur_stack.back().state;
-        cur_active_tree = recur_stack.back().atree;
+        cur_active_tree.generate_path(recur_stack.back().atree);
         recur_stack.pop_back();
         current_hisnode = backup_curhisnode;
     }
@@ -1122,16 +1104,18 @@ void solver::initialize_node_sharing() {
 
 void solver::Check_Restart_Status(deque<node>& enumeration_list, deque<node>& curlocal_nodes) {
 
-    if (thread_id == 0 && !abandon_work && !abandon_share) {
-        bool concentrate_restart = false;
+    if (thread_id == 0) {
         auto elasped_time = std::chrono::duration<double>(std::chrono::system_clock::now() - time_point).count();
         
         if (!lb_restart && !group_bestsolcnt && elasped_time > 2) {
             cout << "No solution detected. Issuing special LB restart" << endl;
             lb_restart = true;
-            concentrate_restart = true;
+	        Thread_Selection();
+            time_point = std::chrono::system_clock::now();
         }
-        if (concentrate_restart || (elasped_time > group_sample_time)) {
+        else if (group_bestsolcnt && psched_cnt == total_pcount && elasped_time > group_sample_time) {
+            abandon_share = false;
+            abandon_work = false;
             cout << "examined by thread 0" << endl;
             Thread_Selection();
             time_point = std::chrono::system_clock::now();
@@ -1191,6 +1175,7 @@ void solver::Check_Restart_Status(deque<node>& enumeration_list, deque<node>& cu
                 }
             }
             if (psched_cnt == total_pcount) {
+                total_pcount = 0;
                 psched_cnt = 0;
                 cout << "Enabling Thread Restart" << endl;
                 selectT_arr.clear();
@@ -1272,7 +1257,7 @@ bool solver::EnumerationList_PreProcess(deque<node>& enumeration_list,deque<node
                               && enumeration_list.back().his_entry->Entry.load().prefix_cost < enumeration_list.back().partial_cost)
        )
     {   
-        cur_active_tree.incre_children_cnt(&Allocator);
+        cur_active_tree.incre_children_cnt(Allocator);
         if (enumeration_list.back().his_entry != NULL && enumeration_list.back().his_entry->active_threadID == thread_id) {
             enumeration_list.back().his_entry->explored = true;
         }
@@ -1569,19 +1554,9 @@ int solver::enumerate(int i) {
 
     int lb_liminsert = lb_curlv;
 
-    cur_active_tree.push_back(enumeration_list.size(),current_hisnode,&Allocator);
+    cur_active_tree.push_back(enumeration_list.size(),current_hisnode,Allocator);
 
     CheckStop_Request();
-
-    //enumerated_nodes[thread_id].val++;
-
-    /*
-    if (problem_state.cur_solution.size() == 170 && problem_state.cur_solution.back() == 30) {
-        for (auto num : enumeration_list) {
-            cout << "num = " << num.n << ", num_lb = " << num.lb << ", best_cost = " << best_cost << endl;
-        }
-    }
-    */
 
     while(!enumeration_list.empty()) {
         if(EnumerationList_PreProcess(enumeration_list,curlocal_nodes)) continue;
@@ -1689,7 +1664,7 @@ int solver::enumerate(int i) {
         push_to_historytable(problem_state.key,lb_liminsert,NULL,false);
     }
 
-    cur_active_tree.pop_back(&Allocator,stop_init);
+    cur_active_tree.pop_back(stop_init,Allocator);
 
     if (!Wlkload_Request(next_level-1)) {
         next_level = problem_state.initial_depth + 1;
@@ -1716,7 +1691,7 @@ void solver::retrieve_from_local(deque<node>& curlocal_nodes, deque<node>& enume
                         if ((*local_pool)[k].invalid_ptr == &(curlocal_nodes.back().node_invalid)) {
                             //don't pop if it is still alive living in another thread node_grab
                             curlocal_nodes.pop_back();
-                            (*local_pool)[k].partial_active_path.incre_children_cnt(&Allocator);
+                            (*local_pool)[k].partial_active_path.incre_children_cnt(Allocator);
                             if ((*local_pool)[k].root_his_node != NULL && (*local_pool)[k].root_his_node->active_threadID == thread_id) {
                                 (*local_pool)[k].root_his_node->explored = true;
                             }
@@ -1760,13 +1735,15 @@ bool solver::grab_restartnode() {
 
     if (thread_load[thread_id].next_action == abandon_action::EXPLORE_UNKNOWN) {
         while (!selected && !GPQ.Unknown.empty()) {
-            if (GPQ.Unknown.back().load_info >= best_cost) GPQ.Unknown.pop_back();
+            if (GPQ.Unknown.back().load_info >= best_cost) {
+                GPQ.Unknown.pop_back();
+            }
             if (!GPQ.Unknown.empty()) {
-                Generate_SolverState(GPQ.Unknown.back(), false);
+                Generate_SolverState(GPQ.Unknown.back());
                 GPQ.Unknown.pop_back();
                 selected = true;
-                break;
                 //cout << " Thread " << thread_id << " Pick up unknown workload!. Current Initial Global Pool Size is " << GPQ.Unknown.size() << endl;
+                break;
             }
             else {
                 cout << "******************" << endl;
@@ -1778,15 +1755,21 @@ bool solver::grab_restartnode() {
     else if (thread_load[thread_id].next_action == abandon_action::EXPLOITATION_PROMISE) {
         while (!selected) {
             while (!GPQ.Promise.space.back().empty()) {
-                if (GPQ.Promise.space.back().back().load_info >= best_cost) {
+                if (GPQ.Promise.space.back().back().load_info >= best_cost || GPQ.Promise.space.back().back().deprecated) {
                     //cout << " Thread " << thread_id << " Pruned shared work!. Current Shared Pool Size is " << GPQ.Promise.space.back().size() << endl;
+                    if (!GPQ.Promise.space.back().back().deprecated) {
+                        GPQ.Promise.space.back().back().partial_active_path.incre_children_cnt(Allocator);
+                        if (GPQ.Promise.space.back().back().root_his_node != NULL) {
+                            GPQ.Promise.space.back().back().root_his_node->explored = true;
+                        }
+                    }
                     GPQ.Promise.space.back().pop_back();
                 }
                 else {
-                    Generate_SolverState(GPQ.Promise.space.back().back(), false);
+                    Generate_SolverState(GPQ.Promise.space.back().back());
                     GPQ.Promise.space.back().pop_back();
-                    //cout << " Thread " << thread_id << " Pick up shared work!. Current Shared Pool Size is " << GPQ.Promise.space.back().size() << endl;
                     selected = true;
+                    //cout << " Thread " << thread_id << " Pick up shared work!. Current Shared Pool Size is " << GPQ.Promise.space.back().size() << endl;
                     break;
                 }
             }
@@ -1812,14 +1795,10 @@ bool solver::Grab_from_GPQ(bool reserve) {
     GPQ_lock.lock();
     while (!assigned && !GPQ.Unknown.empty()) {
         if (GPQ.Unknown.back().load_info >= best_cost) {
-            GPQ.Unknown.back().partial_active_path.incre_children_cnt(&Allocator);
-            if (GPQ.Unknown.back().root_his_node != NULL) {
-                GPQ.Unknown.back().root_his_node->explored = true;
-            }
             assigned = false;
         }
         else {
-            Generate_SolverState(GPQ.Unknown.back(),true);
+            Generate_SolverState(GPQ.Unknown.back());
             terminate = false;
             assigned = true;
         }
@@ -1827,15 +1806,17 @@ bool solver::Grab_from_GPQ(bool reserve) {
     }
 
     while (!assigned && !GPQ.Abandoned.empty()) {
-        if (GPQ.Abandoned.back().load_info >= best_cost) {
-            GPQ.Abandoned.back().partial_active_path.incre_children_cnt(&Allocator);
-            if (GPQ.Abandoned.back().root_his_node != NULL) {
-                GPQ.Abandoned.back().root_his_node->explored = true;
+        if (GPQ.Abandoned.back().load_info >= best_cost || GPQ.Abandoned.back().deprecated) {
+            if (!GPQ.Abandoned.back().deprecated) {
+                GPQ.Abandoned.back().partial_active_path.incre_children_cnt(Allocator);
+                if (GPQ.Abandoned.back().root_his_node != NULL) {
+                    GPQ.Abandoned.back().root_his_node->explored = true;
+                }
             }
             assigned = false;
         }
         else {
-            Generate_SolverState(GPQ.Abandoned.back(), true);
+            Generate_SolverState(GPQ.Abandoned.back());
             terminate = false;
             assigned = true;
         }
@@ -1888,7 +1869,7 @@ void solver::solve_parallel(int thread_num, int pool_size) {
         if (pre_density != 0) solver_container->push_back(initial_state);
         else if (node_count > thread_total) {
             GPQ.Unknown.push_back(instrct_node(initial_state.cur_solution,initial_state.originate,initial_state.load_info,-1,
-                                               initial_state.x_start,Active_Path(node_count,initial_state.cur_solution.size()),NULL));
+                                               initial_state.x_start,Active_Path(initial_state.cur_solution.size()),NULL));
         }
 
         initial_state.taken_arr[taken_node] = 0;
@@ -1946,7 +1927,7 @@ void solver::solve_parallel(int thread_num, int pool_size) {
     if (GPQ.Unknown.empty()) {
         for (auto problem : *solver_container) {
             GPQ.Unknown.push_back(instrct_node(problem.cur_solution,problem.originate,problem.load_info,-1,
-                                            problem.x_start,Active_Path(node_count,problem.cur_solution.size()),NULL));
+                                            problem.x_start,Active_Path(problem.cur_solution.size()),NULL));
         }
     }
     sort(GPQ.Unknown.begin(),GPQ.Unknown.end(),GPQ_sort);
@@ -1990,7 +1971,7 @@ void solver::solve_parallel(int thread_num, int pool_size) {
                     counter++;
                 }
 
-                solvers[thread_cnt].cur_active_tree = Active_Path(node_count,solvers[thread_cnt].problem_state.cur_solution.size());
+                solvers[thread_cnt].cur_active_tree = Active_Path(solvers[thread_cnt].problem_state.cur_solution.size());
                 solvers[thread_cnt].cur_active_tree.set_threadID(thread_cnt, thread_total);
                 solvers[thread_cnt].problem_state.load_info = sequence_node.load_info;
                 solvers[thread_cnt].lb_curlv = sequence_node.load_info;
@@ -2035,6 +2016,7 @@ void solver::solve_parallel(int thread_num, int pool_size) {
     }
     active_thread = 0;
 
+    if (time_out) cout << "instance timed out " << endl;
 
     if (time_out || (GPQ.Unknown.empty() && GPQ.Abandoned.empty())) {
         delete thread_load;

@@ -17,13 +17,12 @@ struct HistoryContent {
 };
 
 struct Active_Node {
-    Active_Node* parent = NULL;
     HistoryNode* history_link = NULL;
 	int32_t total_children_cnt = 0;
     int32_t cur_children_cnt = 0;
-    atomic<int32_t> cur_threadID;
+    atomic<int16_t> cur_threadID;
 	atomic<bool> deprecated;
-	mutex node_lock;
+	mutex nlck;
 };
 
 struct HistoryNode {
