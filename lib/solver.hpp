@@ -40,16 +40,6 @@ struct mutex_64 {
     bool padding[24];
 };
 
-enum request_type {
-    STOP,
-    RESUME,
-};
-
-enum restart_option {
-    CNT_BASED,
-    DEVIATION_BASED,
-};
-
 enum restart_criteria {
     BEST_SOLUTION_BASED,
     HISTORY_UPDATE_BASED,
@@ -62,9 +52,7 @@ enum pool_dest {
 
 enum space_state {
     NOT_PROMISING,
-    NORMAL,
-    NORMAL_PROMISING,
-    MOST_PROMISING,
+    IS_PROMISING,
 };
 
 enum space_ranking {
@@ -85,17 +73,11 @@ enum transformation_option {
 };
 
 struct request_packet {
-    request_type type;
     int target_lastnode;
     int target_depth;
     int target_prefix_cost;
     int target_key;
     int target_thread;
-};
-
-struct resume_packet {
-    vector<int> resume_vec;
-    vector<vector<bool>> ignore_tag;
 };
 
 class load_stats {
@@ -148,16 +130,6 @@ struct promise_stats {
     unsigned depth = 0;
 };
 
-struct restart_info {
-    int num_local_best = 0;
-    int estimated_leaves = 0;
-    int local_best_cnt = 0;
-    int best_local_cost = INT_MAX;
-    int number_of_restarts = 0;
-    int num_of_Samples = 0;
-    float slope = -1;
-};
-
 struct speed_resinfo {
     int tid = -1;
     int u = -1;
@@ -167,13 +139,6 @@ struct speed_resinfo {
     bool compute = false;
     deque<node>* lbproc_list = NULL;
     bool padding[31];
-};
-
-struct resume_seqeuence {
-    deque<int> resume_partialsol;
-    deque<int> level_vec;
-    int trigger_node = -1;
-    int trigger_level = -1;
 };
 
 template <typename T>
@@ -197,17 +162,15 @@ class instrct_node {
         bool* invalid_ptr = NULL;
         bool deprecated = false;
 
-        restart_info temp_info;
         Active_Path partial_active_path;
         HistoryNode* root_his_node;
         instrct_node(vector<int> sequence_src,int originate_src, int load_info_src, 
-                     int best_costrecord_src, restart_info temp_info_src, Active_Path temp_active_path, 
+                     int best_costrecord_src, Active_Path temp_active_path, 
                      HistoryNode* temp_root_hisnode) {
             sequence = sequence_src;
             originate = originate_src;
             load_info = load_info_src;
             parent_lv = best_costrecord_src;
-            temp_info = temp_info_src;
             partial_active_path = temp_active_path;
             root_his_node = temp_root_hisnode;
         }
@@ -246,7 +209,6 @@ struct sop_state {
     Hungarian hungarian_solver;
     std::chrono::time_point<std::chrono::system_clock> interval_start;
     pair<boost::dynamic_bitset<>,int> key;
-    restart_info x_start;
     HistoryNode* cur_parent_hisnode = NULL;
     int cur_cost = 0;
     int initial_depth = 0;
@@ -272,22 +234,14 @@ class solver {
     private:        
         deque<instrct_node> wrksteal_pool;
         deque<instrct_node> *local_pool = NULL;
-        vector<bool> worksteal_info;
         vector<recur_state> recur_stack;
         Active_Allocator Allocator;
         Active_Path cur_active_tree;
-        bool stolen = false;
         bool abandon_work = false;
         bool abandon_share = false;
-        bool abandon_inner = false;
-        bool compute_stats = false;
         bool grabbed = false;
-        bool initialize_threadrestart = false;
-        bool promise_exploration = false;
         int node_count = 0;
-        int inner_abandon_threshold = 0;
         int restart_group_id = -1;
-        int HisPruned_lb = INT_MAX;
         int mg_id = -1;
         bool speed_search = false;
         int lb_curlv = INT_MAX;
@@ -300,7 +254,6 @@ class solver {
 
         //Restart
         int concentrate_lv = 0;
-        int failed_cnt = 0;
 
         //Thread Stopping
         int stop_depth = -1;
@@ -348,10 +301,8 @@ class solver {
         void sort_weight(vector<vector<edge>>& graph);
         void Select_GroupMember(int unpromise_cnt);
         void Check_Restart_Status(deque<node>& enumeration_list, deque<node>& curlocal_nodes);
-        void Check_Pause_State();
         void ThreadStopDelete_Pool(int& target_depth);
         void StopCurThread(int target_depth);
-        void ThreadResume_Pool();
         void Local_PoolConfig(float precedence_density);
         void regenerate_hungstate();
         void CheckStop_Request();

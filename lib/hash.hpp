@@ -20,21 +20,14 @@
 #define HIS_BLK_SIZE 81920
 #define FREED_SIZE 100000000
 #define COVER_AREA 10
-#define DEPLETION_TIME_FRAME 10
 
 typedef pair<pair<boost::dynamic_bitset<>,int>,HistoryNode*> Entry;
 typedef list<Entry> Bucket;
-static mutex Gretrive_Lock;
-static atomic<int> GlobalRecycle_Size(0);
-static std::chrono::time_point<std::chrono::system_clock> start_clean_limit;
-static std::chrono::time_point<std::chrono::system_clock> start_detect_limit;
 
 struct Recycled_Blk {
     HistoryNode** Node_Blk = NULL;
     int total_counter = -1;
 };
-
-static vector<Recycled_Blk> GlobalHisNodeContainer;
  
 class spinlock{
     public:
@@ -74,32 +67,20 @@ class Hash_Map {
         unsigned size = 0;
         unsigned thread_cnt = 0;
         size_t node_size = 0;
-        unsigned maximum_usage_cnt = 0;
         vector<Bucket*> History_table;
         vector<spinlock> hash_lock;
         vector<Mem_Allocator> Mem_Manager;
     public:
-        atomic<long> num_of_waits;
         Hash_Map(size_t size);
-        bool isReserve_Empty();
         size_t get_max_size();
         size_t get_cur_size();
         unsigned long get_free_mem();
         uint32_t hash_func(pair<vector<bool>,int> item);
-        void calculate_SD();
         void adjust_max_size(int node_count, int GPQ_size);
-        void increase_size(size_t size_incre);
-        void set_node_t(int node_count, int sub_size, int thread_total);
         void set_up_mem(int thread_num,int node_count);
-        void set_sample_period(unsigned runtime_limit);
-        void average_size();
-        void test_check();
-        bool key_compare(const vector<bool>& src, const vector<bool>& dest);
         void analyze_table();
         void print_curmem();
         HistoryNode* insert(pair<boost::dynamic_bitset<>,int>& item,int prefix_cost,int lower_bound, unsigned thread_id, bool backtracked, unsigned depth);
-        void table_lock(size_t key);
-        void table_unlock(size_t key);
         HistoryNode* retrieve(pair<boost::dynamic_bitset<>,int>& item,int key);
 };
 

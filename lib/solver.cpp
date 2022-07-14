@@ -53,7 +53,6 @@ static mutex Select_Mutex;
 static mutex Select_SharedMutex;
 static mutex Resume_Lock;
 static mutex launch_lck;
-static restart_criteria res_criteria;
 
 static atomic<int> selected_thread (-1);
 static atomic<int> restart_cnt (0);
@@ -84,23 +83,16 @@ static atomic<bool> stop_sig (false);
 ///////////Thread Resume///////////////
 static atomic<int> lowest_computedlb (INT_MAX);
 static promise_stats restart_data;
-static resume_packet resume_pkt;
 ///////////////////////////////////////
 
-//Restart Algorithm
-
-//////T0,T1,T2,T3 = Primary
-//////T4,T5,T6 = Secondary
-//////T7,T8,T9 = Exploration
 atomic<int> group_bestsolcnt(0);
 atomic<int> refresh_threadcnt(0);
 
-//Data Collection
 load_stats* thread_load;
 bool end_heuristics = false;
+
 //Config variable (Reading Only)
 static string f_name;
-static string enum_option;
 static int global_pool_size = 0;
 static int local_pool_size = 0;
 static int tgroup_ratio = 0;
@@ -108,7 +100,6 @@ static int t_limit = 0;
 static int thread_total = 0;
 static int local_depth = 0;
 static int max_edge_weight = 0;
-static restart_option restart_opt;
 static bool enable_workstealing = false;
 static float pre_density = 0;
 bool enable_threadstop = false;
@@ -117,15 +108,12 @@ bool enable_threadstop = false;
 //Shared resources
 std::chrono::time_point<std::chrono::system_clock> start_time_limit;
 std::chrono::time_point<std::chrono::system_clock> time_point;
-std::chrono::time_point<std::chrono::system_clock> shared_time_point;
 static vector<vector<int>> dependent_graph;
 static vector<vector<int>> outgoing_graph;
 static vector<vector<edge>> in_degree;
 static vector<vector<edge>> hung_graph;
 static vector<vector<edge>> cost_graph;
 static vector<Hungarian> initial_hungstate;
-static vector<atomic<unsigned long>*> frequency;
-static vector<atomic<unsigned long>*> frequency_case1;
 static sop_state default_state;
 static vector<bool_64> abandon_wlk_array;
 static vector<lptr_64> glp;
@@ -163,58 +151,31 @@ static vector<double> steal_wait;
 static vector<vector<double>> proc_time;
 static vector<int> steal_cnt;
 
-/*
-struct recur_info {
-    bool HistoryPruned = false;
-    bool LBPruned = false;
-    int plb = -1;
-    int best_cost = -1;
-    vector<int> solution;
-    int prefix_cost = -1;
-    int cur_cost = -1;
-    int hlb = -1;
-    int active_thread = -1;
-};
-
-static vector<vector<recur_info>> tree;
-*/
-
 
 void solver::assign_parameter(vector<string> setting) {
-    enum_option = setting[0];
-    cout << "Enum option = " << setting[0] << endl;
-    t_limit = atoi(setting[1].c_str());
+    t_limit = atoi(setting[0].c_str());
     cout << "Time limit = " << t_limit << endl;
-    global_pool_size = atoi(setting[2].c_str());
+    global_pool_size = atoi(setting[1].c_str());
     cout << "GPQ size = " << global_pool_size << endl;
-    local_depth = atoi(setting[3].c_str());
+    local_depth = atoi(setting[2].c_str());
     cout << "LPQ depth = " << local_depth << endl;
 
-    if (setting[4] == "CNT_BASED") {
-        cout << "Restart-Set: CNT_BASED" << endl;
-        restart_opt = restart_option::CNT_BASED;
-    }
-    else {
-        cout << "Restart-Set: DEVIATION_BASED" << endl;
-        restart_opt = restart_option::DEVIATION_BASED;
-    }
-
-    inhis_mem_limit = atof(setting[5].c_str());
+    inhis_mem_limit = atof(setting[3].c_str());
     cout << "History table mem limit = " << inhis_mem_limit << endl;
 
-    exploitation_per = atof(setting[6].c_str())/float(100);
+    exploitation_per = atof(setting[4].c_str())/float(100);
     cout << "Restart exploitation/exploration ratio is " << exploitation_per << endl;
 
-    group_sample_time = atoi(setting[7].c_str());
+    group_sample_time = atoi(setting[5].c_str());
     cout << "Group sample time = " << group_sample_time << endl;
     
-    tgroup_ratio = atoi(setting[8].c_str());
+    tgroup_ratio = atoi(setting[6].c_str());
     cout << "Number of promoising thread per exploitation group = " << tgroup_ratio << endl;
 
-    if (!atoi(setting[9].c_str())) enable_workstealing = false;
+    if (!atoi(setting[7].c_str())) enable_workstealing = false;
     else enable_workstealing = true;
 
-    if (!atoi(setting[10].c_str())) enable_threadstop = false;
+    if (!atoi(setting[8].c_str())) enable_threadstop = false;
     else enable_threadstop = true;
 
     return;
@@ -270,7 +231,7 @@ bool solver::HistoryUtilization(pair<boost::dynamic_bitset<>,int>& key,int* lowe
             if (target_ID >= 0) {
                 if (request_buffer.empty() || request_buffer.front().target_thread != target_ID || request_buffer.front().target_depth > (int)problem_state.cur_solution.size()) {
                     num_stop[thread_id].val++;
-                    request_buffer.push_front({request_type::STOP,problem_state.cur_solution.back(),(int)problem_state.cur_solution.size(),
+                    request_buffer.push_front({problem_state.cur_solution.back(),(int)problem_state.cur_solution.size(),
                                             content.prefix_cost,bucket_location,target_ID});
                     if (!stop_sig) {
                         stop_cnt = 0;
@@ -376,10 +337,8 @@ bool solver::Wlkload_Request(int i) {
 
             if (abandon_work) initialize_node_sharing();
 
-            worksteal_info = vector<bool>(node_count,false);
             terminate = Grab_from_GPQ(false);
             
-            //Check_Pause_State();
             if (active_thread > 0 && terminate) {
                 active_thread--;
                 terminate = Steal_Workload();
@@ -675,7 +634,6 @@ void solver::Generate_SolverState(instrct_node& sequence_node) {
     problem_state.initial_depth = problem_state.cur_solution.size();
     problem_state.load_info = sequence_node.load_info;
     problem_state.originate = sequence_node.originate;
-    problem_state.x_start = sequence_node.temp_info;
     current_hisnode = sequence_node.root_his_node;
     
     cur_active_tree.generate_path(sequence_node.partial_active_path);
@@ -713,7 +671,7 @@ bool solver::assign_workload(node& transfer_node, pool_dest destination, space_r
     vector<int> target_solution = problem_state.cur_solution;
     target_solution.push_back(taken_n);
     instrct_node workload = instrct_node(target_solution,problem_state.originate+1,lb,-1,
-                                          problem_state.x_start,cur_active_tree,temp_hisnode);
+                                         cur_active_tree,temp_hisnode);
 
     switch (destination) {
         case GLOBAL_POOL:
@@ -814,6 +772,8 @@ bool solver::Split_level_check(deque<sop_state>* solver_container) {
 }
 
 bool solver::Is_promisethread(int t_id) {
+    if (selectT_arr.empty()) return false;
+
     ptselct_lock.lock();
     for (int_64 id_val : selectT_arr) {
         if (id_val.val == t_id && id_val.explored == false) {
@@ -942,8 +902,7 @@ void solver::Thread_Selection() {
             thread_load[i].space_ranking = space_state::NOT_PROMISING;
             unpromise_cnt++;
         }
-        else if (thread_load[i].data_cnt == 1) thread_load[i].space_ranking = space_state::NORMAL;
-        else if (thread_load[i].data_cnt > 1) thread_load[i].space_ranking = space_state::NORMAL_PROMISING;
+        else if (thread_load[i].data_cnt >= 1) thread_load[i].space_ranking = space_state::IS_PROMISING;
     }
 
     if (!unpromise_cnt) {
@@ -1068,7 +1027,6 @@ void solver::initialize_node_sharing() {
                 thread_load_mutex.unlock();
 
                 concentrate_lv++;
-                failed_cnt = 0;
                 enumerate(problem_state.initial_depth);
                 concentrate_lv--;
 
@@ -1237,7 +1195,6 @@ bool solver::Check_Local_Pool(deque<node>& enumeration_list,deque<node>& curloca
                 if (!assign_workload(curlocal_nodes.front(),pool_dest::LOCAL_POOL,space_ranking::UNEXPLORED,curlocal_nodes.front().his_entry)) {
                     curlocal_nodes.pop_front();
                 }
-                if (!worksteal_info[problem_state.cur_solution.size() - 1]) worksteal_info[problem_state.cur_solution.size() - 1] = true;
             }
         }
         if (!local_pool->empty()) {
@@ -1374,10 +1331,8 @@ int solver::enumerate(int i) {
 
                     if (std::chrono::duration<double>(std::chrono::system_clock::now() - start_time_limit).count() > DATA_COLLECTION_START) {
                         thread_load_mutex.lock();
-                        if (res_criteria == restart_criteria::BEST_SOLUTION_BASED) {
-                            thread_load[thread_id].data_cnt++;
-                            thread_load[thread_id].found_time = std::chrono::system_clock::now();
-                        }
+                        thread_load[thread_id].data_cnt++;
+                        thread_load[thread_id].found_time = std::chrono::system_clock::now();
                         thread_load_mutex.unlock();
                     }
                     
@@ -1546,9 +1501,7 @@ int solver::enumerate(int i) {
         problem_state.cur_solution.pop_back();
         problem_state.cur_cost -= cost_graph[src][dest.n].weight;
     }
-    if (enum_option == "DH") sort(enumeration_list.begin(),enumeration_list.end(),bound_sort);
-    else if (enum_option == "NN") sort(enumeration_list.begin(),enumeration_list.end(),nearest_sort);
-    //cout << endl;
+    sort(enumeration_list.begin(),enumeration_list.end(),bound_sort);
 
     HistoryNode* history_entry = NULL;
 
@@ -1869,7 +1822,7 @@ void solver::solve_parallel(int thread_num, int pool_size) {
         if (pre_density != 0) solver_container->push_back(initial_state);
         else if (node_count > thread_total) {
             GPQ.Unknown.push_back(instrct_node(initial_state.cur_solution,initial_state.originate,initial_state.load_info,-1,
-                                               initial_state.x_start,Active_Path(initial_state.cur_solution.size()),NULL));
+                                               Active_Path(initial_state.cur_solution.size()),NULL));
         }
 
         initial_state.taken_arr[taken_node] = 0;
@@ -1927,7 +1880,7 @@ void solver::solve_parallel(int thread_num, int pool_size) {
     if (GPQ.Unknown.empty()) {
         for (auto problem : *solver_container) {
             GPQ.Unknown.push_back(instrct_node(problem.cur_solution,problem.originate,problem.load_info,-1,
-                                            problem.x_start,Active_Path(problem.cur_solution.size()),NULL));
+                                               Active_Path(problem.cur_solution.size()),NULL));
         }
     }
     sort(GPQ.Unknown.begin(),GPQ.Unknown.end(),GPQ_sort);
@@ -1980,7 +1933,6 @@ void solver::solve_parallel(int thread_num, int pool_size) {
                 solvers[thread_cnt].problem_state.initial_depth = solvers[thread_cnt].problem_state.cur_solution.size();
                 solvers[thread_cnt].thread_id = thread_cnt;
                 solvers[thread_cnt].local_pool = new deque<instrct_node>();
-                solvers[thread_cnt].worksteal_info = vector<bool>(node_count,false);
                 thread_load[thread_cnt].cur_sol = &solvers[thread_cnt].problem_state.cur_solution;
                 glp[thread_cnt].local_pool = solvers[thread_cnt].local_pool;
                 origin_taken_arr[origin] = true;
@@ -2114,7 +2066,6 @@ void solver::solve(string filename,int thread_num) {
     history_table.set_up_mem(thread_num,node_count);
     
     abandon_wlk_array = vector<bool_64>(thread_num);
-    res_criteria = restart_criteria::BEST_SOLUTION_BASED;
     num_resume = vector<int_64>(thread_num);
     num_stop = vector<int_64>(thread_num);
     glp = vector<lptr_64>(thread_num);
@@ -2136,7 +2087,7 @@ void solver::solve(string filename,int thread_num) {
 
     auto total_time = chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
     cout << "------------------------" << thread_total << " thread" << "------------------------------" << endl;
-    cout << enum_option << ": " << best_cost << "," << setprecision(4) << total_time / (float)(1000000) << endl;
+    cout << best_cost << "," << setprecision(4) << total_time / (float)(1000000) << endl;
     
     
     /*

@@ -1,6 +1,3 @@
-//DH for lower bound and NN for nearest neighbor
-Static_Enumeration = DH
-
 //Time limit for the input instance (in seconds)
 Time_Limit = 3600
 
@@ -9,9 +6,6 @@ Global_Pool_Size = 32
 
 //Assign workload level (total number of levels in the state tree)
 Level = 250
-
-//Restart Choose Selector (CNT_BASED or DEVIATION_BASED)
-Selector = CNT_BASED
 
 //Memory_Restriction (in % from 0 - 1)
 Restrict_Per = 0.8

@@ -95,11 +95,6 @@ unsigned long Hash_Map::get_free_mem() {
     return (double)info.freeram;
 }
 
-void Hash_Map::increase_size(size_t size_incre) {
-    cur_size += size_incre;
-    return;
-}
-
 void Hash_Map::print_curmem() {
     cout << "Mem exhausted is " << cur_size / 1000000 << "MB" << endl;
     return;
@@ -193,16 +188,6 @@ HistoryNode* Hash_Map::insert(pair<boost::dynamic_bitset<>,int>& item,int prefix
     History_table[key]->push_back(make_pair(item,node));
     hash_lock[key/COVER_AREA].unlock();
     return node;
-}
-
-void Hash_Map::table_lock(size_t key) {
-    hash_lock[key/COVER_AREA].lock();
-    return;
-}
-
-void Hash_Map::table_unlock(size_t key) {
-    hash_lock[key/COVER_AREA].unlock();
-    return;
 }
 
 HistoryNode* Hash_Map::retrieve(pair<boost::dynamic_bitset<>,int>& item,int key) {
