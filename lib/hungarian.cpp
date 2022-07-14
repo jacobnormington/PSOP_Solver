@@ -3,7 +3,7 @@
 #include <limits>
 #include <iostream>
 
-#include "hungarian.hpp"
+#include "hungarian.h"
 
 using std::max;
 using std::min;

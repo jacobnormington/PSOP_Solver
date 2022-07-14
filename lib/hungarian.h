@@ -21,6 +21,7 @@ public:
 	int get_matching_cost();
 	void solve_dynamic(void);
 
+private:
 	int max_edge_weight;
 	int N;
 	vector<vector<int>> cost;

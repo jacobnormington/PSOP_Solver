@@ -2,26 +2,27 @@
 #include <unordered_map>
 #include <iostream>
 #include <list>
-#include <mutex>
-#include <cmath>
-#include <climits>
-#include <cerrno>
-#include <atomic>
 #include <sys/sysinfo.h>
-#include <malloc.h>
-#include "history.hpp"
+#include <boost/dynamic_bitset.hpp>
 #include "hash.hpp"
-
-unsigned long starting_max_size = 0;
-#define MEMORY_RESTRIC 0.95
-#define SAMPLE_FREQUENCY 60
 
 Mem_Allocator::Mem_Allocator() {
     Bucket_blk = new Bucket[BUCKET_BLK_SIZE];
-    history_block = (HistoryNode*)malloc(HIS_BLK_SIZE*sizeof(HistoryNode));
+    history_block = new HistoryNode[HIS_BLK_SIZE];
     counter = 0;
     node_counter = 0;
 }
+
+HistoryNode* Mem_Allocator::retrieve_his_node() {
+    if (node_counter >= HIS_BLK_SIZE || history_block == NULL) {
+        history_block = new HistoryNode[HIS_BLK_SIZE];
+        node_counter = 0;
+    }
+    HistoryNode* node = history_block + node_counter;
+    node_counter++;
+    return node;
+}
+
 
 Bucket* Mem_Allocator::Get_bucket() {
     if (counter == BUCKET_BLK_SIZE || Bucket_blk == NULL) {
@@ -33,50 +34,19 @@ Bucket* Mem_Allocator::Get_bucket() {
     return bucket;
 }
 
-HistoryNode* Mem_Allocator::retrieve_his_node() {
-    HistoryNode* node = NULL;
-
-    if (node_counter >= HIS_BLK_SIZE || history_block == NULL) {
-        history_block = (HistoryNode*)malloc(HIS_BLK_SIZE*sizeof(HistoryNode));
-        node_counter = 0;
-    }
-    node = history_block + node_counter;
-    node_counter++;
-
-    return node;
-}
-
-Hash_Map::Hash_Map(size_t size) {
-    struct sysinfo info;
+Hash_Map::Hash_Map(int size) {
     this->size = size;
+    struct sysinfo info;
 	if(sysinfo(&info) != 0){
         cout << "can't retrieve sys mem info\n";
 		exit(1);
 	}
-    starting_max_size = (unsigned long)info.freeram;
-    max_size = (double)info.freeram * MEMORY_RESTRIC - (size * 4);
-    total_size = info.totalram;
+    max_size = ((double)info.freeram * MEMORY_RESTRIC) - (size * 4);
     cur_size = 0;
-
-    //cout << "Max bucket size is " << max_size / 1000000 << " MB" << endl;
-    //cout << "Total Available Memory In OS is " << info.totalram / 1000000 << " MB" << endl;
-
-    hash_lock = vector<spinlock>(size/COVER_AREA + 1);
     History_table.resize(size);
-
-    insert_count = 0;
+    
+    for (int i = 0; i < size; i++) History_table[i] = NULL;
 }
-
-void Hash_Map::adjust_max_size(int node_count,int GPQ_size) {
-    max_size -= (GPQ_size * (12*node_count + 2*node_count*node_count) * 4);
-}
-
-void Hash_Map::set_up_mem(int thread_num,int node_count) {
-    for (int i = 0; i < thread_num; i++) {
-        Mem_Manager.push_back(Mem_Allocator());
-    }
-}
-
 
 size_t Hash_Map::get_max_size() {
     return max_size;
@@ -86,150 +56,89 @@ size_t Hash_Map::get_cur_size() {
     return cur_size;
 }
 
-unsigned long Hash_Map::get_free_mem() {
-    struct sysinfo info;
-	if(sysinfo(&info) != 0){
-        cout << "can't retrieve sys mem info\n";
-		exit(1);
-	}
-    return (double)info.freeram;
-}
-
 void Hash_Map::increase_size(size_t size_incre) {
     cur_size += size_incre;
     return;
 }
 
-void Hash_Map::print_curmem() {
-    cout << "Mem exhausted is " << cur_size / 1000000 << "MB" << endl;
+void Hash_Map::set_node_t(int node_count) {
+    node_size = 2*sizeof(HistoryNode*) + sizeof(HistoryNode) + sizeof(boost::dynamic_bitset<>) + sizeof(int) + (size_t)max(node_count/8,64);
     return;
 }
 
-/*
-void Hash_Map::analyze_table() {
-    vector<long long unsigned> total_entrynum = vector<long long unsigned>(max_depth,0);
-    vector<long long unsigned> total_uses = vector<long long unsigned>(max_depth,0);
-    vector<long long unsigned> maximum_uses = vector<long long unsigned>(max_depth,0);
-    vector<long long unsigned> minimum_uses = vector<long long unsigned>(max_depth,INT_MAX);
-
+void Hash_Map::average_size() {
+    long unsigned max = 0;
+    long unsigned sum = 0;
+    long unsigned item = 0;
     for (unsigned i = 0; i < size; i++) {
         if (History_table[i] != NULL) {
-            auto iter = History_table[i]->begin();
-            while (iter != History_table[i]->end()) {
-                total_entrynum[iter->second->depth]++;
-                total_uses[iter->second->depth] += iter->second->usage_cnt;
-                if ((unsigned)iter->second->usage_cnt > maximum_uses[iter->second->depth]) maximum_uses[iter->second->depth] = (unsigned)iter->second->usage_cnt;
-                if ((unsigned)iter->second->usage_cnt < minimum_uses[iter->second->depth]) minimum_uses[iter->second->depth] = (unsigned)iter->second->usage_cnt;
-                ++iter;
-            }
+            if (History_table[i]->size() > 0) item++;
+            if (History_table[i]->size() > max) max = History_table[i]->size();
+            sum +=  History_table[i]->size();
         }
     }
-
-    int lv_delta = ceil(float(max_depth) / 5);
-    unsigned starting_lv = 0;
-    unsigned ending_lv = lv_delta;
-
-    long long unsigned x_entry = 0;
-    long long unsigned x_uses = 0;
-    long long unsigned x_maximum = 0;
-    long long unsigned x_minimum = 0;
-    for (unsigned i = 0; i < 5; i++) {
-        for (unsigned j = starting_lv; j < ending_lv; j++) {
-            x_entry += total_entrynum[j];
-            x_uses += total_uses[j];
-            if (maximum_uses[j] > x_maximum) x_maximum = maximum_uses[j];
-            if (minimum_uses[j] < x_minimum) x_minimum = minimum_uses[j];
-        }
-        cout << "---------------------" << i * 20 + 20 << "% [" << starting_lv << "->" << ending_lv <<"]-----------------------" << endl;
-        cout << "Total_Entry: [" << x_entry << "]" << endl;
-        cout << "Total_Uses: [" << x_uses << "]" << endl;
-        cout << "Uses Per Entry: [" << (double)x_uses/(double)x_entry << "]" << endl;
-        cout << "Maximum Uses: [" << x_maximum << "]" << endl;
-        cout << "Minimum Uses: [" << x_minimum << "]" << endl;
-        if (i == 4) cout << "------------------------------------------------" << endl;
-        starting_lv = ending_lv;
-        ending_lv = ending_lv + lv_delta;
-        if (ending_lv >= max_depth) ending_lv = max_depth;
-        x_entry = 0;
-        x_uses = 0;
-        x_maximum = 0;
-        x_minimum = 0;
-    }
-    return;
+    cout << "Total non empty entry is " << item << endl;
+    cout << "Total history table size is " << sum << endl;
+    cout << "Maximum bracket size is " << max << endl;
+    cout << "Average bracket size is " << float(sum)/float(item) << endl;
 }
-*/
     
-HistoryNode* Hash_Map::insert(pair<boost::dynamic_bitset<>,int>& item,int prefix_cost,int lower_bound, unsigned thread_id, bool backtracked, unsigned depth) {
-    HistoryNode* node = Mem_Manager[thread_id].retrieve_his_node();
-
-    if (thread_id == 0) {
-        insert_count++;
-        if (insert_count >= 100000) {
-            cur_size = total_size - get_free_mem();
-            insert_count = 0;
-        }
-    }
-
-    if (node == NULL) return NULL;
-
+bool Hash_Map::insert(pair<boost::dynamic_bitset<>,int>& item,int prefix_cost,int lower_bound, int best_cost) {
     size_t val = hash<boost::dynamic_bitset<>>{}(item.first);
     int key = (val + item.second) % size;
-    
-    if (backtracked) node->explored = true;
-    else node->explored = false;
-    node->Entry.store({prefix_cost,lower_bound});
-    node->active_threadID = thread_id;
-    //node->depth = depth;
-    //node->usage_cnt = 0;
 
-    hash_lock[key/COVER_AREA].lock();
+    HistoryNode* node = Mem_Manager.retrieve_his_node();
+    node->Entry = {prefix_cost,lower_bound};
+
     if (History_table[key] == NULL) {
-        History_table[key] = Mem_Manager[thread_id].Get_bucket();
+        History_table[key] = Mem_Manager.Get_bucket();
         History_table[key]->push_back(make_pair(item,node));
-        hash_lock[key/COVER_AREA].unlock();
-        return node;
+        cur_size += (node_size + sizeof(Bucket));
+        return true;
     }
-    
+
     History_table[key]->push_back(make_pair(item,node));
-    hash_lock[key/COVER_AREA].unlock();
-    return node;
+    cur_size += node_size;
+    return true;
 }
 
-void Hash_Map::table_lock(size_t key) {
-    hash_lock[key/COVER_AREA].lock();
-    return;
-}
-
-void Hash_Map::table_unlock(size_t key) {
-    hash_lock[key/COVER_AREA].unlock();
-    return;
-}
 
 HistoryNode* Hash_Map::retrieve(pair<boost::dynamic_bitset<>,int>& item,int key) {
-
-    hash_lock[key/COVER_AREA].lock();
-    if (History_table[key] == NULL) {
-        hash_lock[key/COVER_AREA].unlock();
-        return NULL;
-    }
+    if (History_table[key] == NULL) return NULL;
     else if (History_table[key]->size() == 1) {
         if (item.second == History_table[key]->begin()->first.second && item.first == History_table[key]->begin()->first.first) {
-            hash_lock[key/COVER_AREA].unlock();
             return History_table[key]->begin()->second;
         }
-        else {
-            hash_lock[key/COVER_AREA].unlock();
-            return NULL;
-        }
+        else return NULL;
     }
 
     for (auto iter = History_table[key]->begin(); iter != History_table[key]->end(); iter++) {
         if (item.second == iter->first.second && item.first == iter->first.first) {
-            hash_lock[key/COVER_AREA].unlock();
             return iter->second;
         }
     }
-    hash_lock[key/COVER_AREA].unlock();
 
     return NULL;
+}
+
+
+void Hash_Map::analyze_usage() {
+    unsigned long total_entry = 0;
+    vector<int> record = vector<int>(maximum_usage_cnt+1,0);
+    for (unsigned i = 0; i < size; i++) {
+        
+        if (History_table[i] != NULL) {
+            total_entry += History_table[i]->size();
+            for (auto iter = History_table[i]->begin(); iter != History_table[i]->end(); iter++) {
+                record[iter->second->usage_cnt]++;
+            }
+        }   
+    }
+
+    cout << "Total number of entries is " << total_entry << endl;
+
+    for (unsigned i = 0; i < maximum_usage_cnt; i++) {
+        if (record[i] != 0) cout << i << "," << record[i] << endl;
+    }
+
 }

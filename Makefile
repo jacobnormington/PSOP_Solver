@@ -1,7 +1,7 @@
 CC = g++
 CG = gcc
 LINK = -o
-CXX_VERSION = -std=c++14 -pthread
+CXX_VERSION = -std=c++14
 COMPILE = -c
 OPTIMIZATION = -O3
 CXXFLAG = -Wall $(CXX_VERSION)
@@ -12,7 +12,7 @@ OBJDIR = obj
 
 PBB_OBJS = $(patsubst %,$(OBJDIR)/%,$(_PBB_OBJS))
 
-_PBB_OBJS = main.o solver.o hash.o hungarian.o active_tree.o precedence.o active_allocate.o
+_PBB_OBJS = main.o solver.o hash.o hungarian.o history.o
 
 PROG = sop_solver
 
