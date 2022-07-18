@@ -263,8 +263,8 @@ class solver {
     public:
         vector<vector<int>> get_cost_matrix(int max_edge_weight);
         vector<int> nearest_neightbor(vector<int>* partial_solution);
-        bool Wlkload_Request(int i);
-        bool HistoryUtilization(pair<boost::dynamic_bitset<>,int>& key,int* lowerbound,bool* found,HistoryNode** entry, int cost, bool* resume_bool);
+        bool Wlkload_Request();
+        bool HistoryUtilization(pair<boost::dynamic_bitset<>,int>& key,int* lowerbound,bool* found,HistoryNode** entry, int cost);
         bool check_satisfiablity(int* local_cost, vector<int>* tour);
         bool Split_local_pool();
         bool push_to_pool(pool_dest decision, space_ranking problem_property);
@@ -272,16 +272,16 @@ class solver {
         bool Is_promisethread(int t_id);
         bool Grab_from_GPQ(bool reserve);
         bool grab_restartnode();
-        bool Check_Local_Pool(deque<node>& enumeration_list,deque<node>& curlocal_nodes,int& i);
+        bool Check_Local_Pool(deque<node>& enumeration_list,deque<node>& curlocal_nodes);
         bool assign_workload(node& transfer_wlkload, pool_dest destination, space_ranking problem_property, HistoryNode* temp_hisnode);
         bool compare_sequence(vector<int>& sequence, int& target_depth);
         bool Steal_Workload();
-        bool thread_stop_check(int target_thread, int target_prefix_cost, int target_depth, int target_lastnode, int target_key);
+        bool thread_stop_check(int target_prefix_cost, int target_depth, int target_lastnode, int target_key);
         bool EnumerationList_PreProcess(deque<node>& enumeration_list,deque<node>& curlocal_nodes);
         int get_maxedgeweight();
         int dynamic_hungarian(int src, int dest);
         int shared_enumerate(int i);
-        int enumerate(int i);
+        void enumerate();
         int get_mgid();
         void transfer_wlkload();
         void retrieve_from_local(deque<node>& curlocal_nodes, deque<node>& enumeration_list);
