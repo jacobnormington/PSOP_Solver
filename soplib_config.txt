@@ -24,3 +24,6 @@ Enable = 1
 
 //Thread Stopping (1 for enable 0 for disable)
 Enable = 1
+
+//Run in parallel with LKH (1 for enable 0 for disable)
+Enable = 1

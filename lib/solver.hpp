@@ -17,8 +17,6 @@
 
 using namespace std;
 
-extern bool enable_threadstop;
-
 struct int_64 {
     int val = 0;
     bool explored = false;

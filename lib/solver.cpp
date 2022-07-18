@@ -1,6 +1,9 @@
 #include "solver.hpp"
 #include "hash.hpp"
 #include "precedence.hpp"
+extern "C" {
+#include "LKH/LKHmain.h"
+}
 #include <iostream>
 #include <fstream>
 #include <stack>
@@ -35,13 +38,14 @@ static int group_sample_time = -1;
 static vector<int_64> selectT_arr;
 static float inhis_mem_limit = -1;
 
-static atomic<int> best_cost(0);
+int* bestBB_tour = NULL;
+int best_cost = INT_MAX;
 static Hash_Map history_table(TABLE_SIZE);
 static vector<int> best_solution;
 static Global_Pool GPQ;
 
 //Variable for locking;
-static mutex Sol_lock;
+pthread_mutex_t Sol_lock = PTHREAD_MUTEX_INITIALIZER;
 static mutex GPQ_lock, Split_lock;
 static mutex asssign_mutex;
 static mutex thread_load_mutex;
@@ -102,8 +106,8 @@ static int local_depth = 0;
 static int max_edge_weight = 0;
 static bool enable_workstealing = false;
 static float pre_density = 0;
-bool enable_threadstop = false;
-
+static bool enable_threadstop = false;
+static bool enable_lkh = false;
 
 //Shared resources
 std::chrono::time_point<std::chrono::system_clock> start_time_limit;
@@ -144,6 +148,11 @@ static atomic<int> global_concentrate_lv(0);
 static atomic<bool> lb_restart(false);
 static vector<atomwrapper<bool>> busy_arr;
 
+//LKH Variable
+bool BB_Complete = false;
+bool BB_SolFound = false;
+bool local_searchinit = true;
+bool initial_LKHRun = true;
 
 //Test Variable
 static vector<double> lp_time;
@@ -176,6 +185,9 @@ void solver::assign_parameter(vector<string> setting) {
 
     if (!atoi(setting[8].c_str())) enable_threadstop = false;
     else enable_threadstop = true;
+
+    if (!atoi(setting[9].c_str())) enable_lkh = false;
+    else enable_lkh = true;
 
     return;
 }
@@ -1237,10 +1249,14 @@ void solver::enumerate() {
             }
             if (problem_state.cur_solution.size() == (size_t)node_count) {
                 if (problem_state.cur_cost < best_cost) {
-                    Sol_lock.lock();
+                    pthread_mutex_lock(&Sol_lock);
                     if (problem_state.cur_cost < best_cost) {
                         best_solution = problem_state.cur_solution;
                         best_cost = problem_state.cur_cost;
+                        if (enable_lkh) {
+                            for (int i = 0; i < node_count; i++) bestBB_tour[i] = best_solution[i];
+                            BB_SolFound = true;
+                        }
 
                         if (!group_bestsolcnt) {
                             thread_load_mutex.lock();
@@ -1271,7 +1287,7 @@ void solver::enumerate() {
                             exploit_init = false;
                         }
                     }        
-                    Sol_lock.unlock();
+                    pthread_mutex_unlock(&Sol_lock);
                 }
                 problem_state.suffix_cost = problem_state.cur_cost;
                 problem_state.cur_solution.pop_back();
@@ -1668,6 +1684,19 @@ bool solver::Grab_from_GPQ(bool reserve) {
     return terminate;
 }
 
+void lkh() {
+    unsigned long trial_num = 1000;
+    while(!BB_Complete) {
+        if (initial_LKHRun) {
+            LKH(&f_name[0],trial_num);
+            initial_LKHRun = false;
+        }
+        else LKH(&f_name[0],INT_MAX);
+        BB_SolFound = false;
+    }
+    return;
+}
+
 void solver::solve_parallel(int thread_num, int pool_size) {
     start_time_limit = std::chrono::system_clock::now();
     vector<solver> solvers(thread_num);
@@ -1854,6 +1883,8 @@ void solver::solve_parallel(int thread_num, int pool_size) {
     }
     active_thread = 0;
 
+    BB_Complete = true;
+
     if (time_out) cout << "instance timed out " << endl;
 
     if (time_out || (GPQ.Unknown.empty() && GPQ.Abandoned.empty())) {
@@ -1905,7 +1936,8 @@ void solver::solve(string filename,int thread_num) {
     if (thread_num == -1 || thread_num == 0) {
         cerr << "Incorrect Thread Number Input" << endl;
     }
-    thread_total = thread_num;
+    if (enable_lkh) thread_total = thread_num - 1;
+    else thread_total = thread_num;
     f_name = filename;
     retrieve_input(filename);
     //Remove redundant edges in the cost graph
@@ -1922,6 +1954,9 @@ void solver::solve(string filename,int thread_num) {
     /////////////////////////////////////////
 
     Local_PoolConfig(float((node_count - 1)*(node_count-2))/float(total_edges));
+
+    bestBB_tour = new int[node_count];
+    for (int i = 0; i < node_count; i++) bestBB_tour[i] = -1;
 
     cout << "Nearest Neighbor Heuristic Initialized" << endl;
     vector<int> temp_solution;
@@ -1949,27 +1984,31 @@ void solver::solve(string filename,int thread_num) {
 
     thread_load = new load_stats [thread_total];
 
-    history_table.set_up_mem(thread_num,node_count);
+    history_table.set_up_mem(thread_total,node_count);
     
-    abandon_wlk_array = vector<bool_64>(thread_num);
-    num_resume = vector<int_64>(thread_num);
-    num_stop = vector<int_64>(thread_num);
-    glp = vector<lptr_64>(thread_num);
-    lp_lock = vector<mutex_64>(thread_num);
-    busy_arr = vector<atomwrapper<bool>>(thread_num);
-    //tree = vector<vector<recur_info>>(thread_num);
+    abandon_wlk_array = vector<bool_64>(thread_total);
+    num_resume = vector<int_64>(thread_total);
+    num_stop = vector<int_64>(thread_total);
+    glp = vector<lptr_64>(thread_total);
+    lp_lock = vector<mutex_64>(thread_total);
+    busy_arr = vector<atomwrapper<bool>>(thread_total);
 
-    steal_wait = vector<double>(thread_num,0);
-    lp_time = vector<double>(thread_num,0);
-    proc_time = vector<vector<double>>(thread_num);
-    for (int i = 0; i < thread_num; i++) proc_time[i] = vector<double>(3,0);
-    for (int i = 0; i < thread_num; i++) initial_hungstate.push_back(default_state.hungarian_solver);
-    steal_cnt = vector<int>(thread_num,0);
-    enumerated_nodes = vector<unsigned_long_64>(thread_num);
+    steal_wait = vector<double>(thread_total,0);
+    lp_time = vector<double>(thread_total,0);
+    proc_time = vector<vector<double>>(thread_total);
+    for (int i = 0; i < thread_total; i++) proc_time[i] = vector<double>(3,0);
+    for (int i = 0; i < thread_total; i++) initial_hungstate.push_back(default_state.hungarian_solver);
+    steal_cnt = vector<int>(thread_total,0);
+    enumerated_nodes = vector<unsigned_long_64>(thread_total);
 
+    thread LKH_thread;
+    if (enable_lkh) LKH_thread = thread(lkh);
+    
     auto start_time = chrono::high_resolution_clock::now();
     solve_parallel(thread_total,global_pool_size);
     auto end_time = chrono::high_resolution_clock::now();
+
+    if (enable_lkh) if (LKH_thread.joinable()) LKH_thread.join();
 
     auto total_time = chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
     cout << "------------------------" << thread_total << " thread" << "------------------------------" << endl;
@@ -2055,11 +2094,21 @@ void solver::Local_PoolConfig(float precedence_density) {
 void solver::retrieve_input(string filename) {
     ifstream inFile;
     string line;
-    inFile.open(filename);
+    string fd_name;
+
+    for (unsigned i = 0; i < filename.size(); i++) {
+        if (i == filename.size() - 4) break;
+        fd_name += filename[i];
+    }
+    fd_name += "_BB.sop";
+
+    inFile.open(fd_name);
+
     if (inFile.fail()) {
-        cerr << "Error: input file " << filename << " -> " << strerror(errno) << endl;
+        cerr << "Error: input file " << fd_name << " -> " << strerror(errno) << endl;
         exit(-1);
     }
+    else cout << "Input file is " << fd_name << endl;
 
     // Read input files and store it inside an array.
     vector<vector<int>> file_matrix;
