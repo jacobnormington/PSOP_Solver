@@ -3,7 +3,6 @@
 /*
  * This file contains the main function of the program.
  */
-bool enable_initialsol = false;
 
 void Clean_Mem() {
     if(CostMatrix) free(CostMatrix);
@@ -158,7 +157,7 @@ void Reset_Parameter() {
     return;
 }
 
-int LKH(char *problem_file, unsigned long trial_num)
+int LKH(char *problem_file)
 {
     Reset_Parameter();
     GainType Cost, OldOptimum;
@@ -166,7 +165,6 @@ int LKH(char *problem_file, unsigned long trial_num)
     Node *N;
     int i;
 
-    enable_initialsol = false;
     ParameterFileName = problem_file;
     ReadParameters();
     ProblemFileName = problem_file;
@@ -177,7 +175,7 @@ int LKH(char *problem_file, unsigned long trial_num)
     MoveType = 5;
     MoveTypeSpecial = 1;
     MaxPopulationSize = 10;
-    Runs = 1;
+    TraceLevel = 0;
 
     StartTime = LastTime = GetTime();
     MaxMatrixDimension = 20000;
@@ -185,12 +183,9 @@ int LKH(char *problem_file, unsigned long trial_num)
         MergeWithTourGPX2;
     ReadProblem();
 
-    if (!enable_initialsol) enable_initialsol = true;
-    else {
-        pthread_mutex_lock(&Sol_lock);
-        Read_BBCost();
-        pthread_mutex_unlock(&Sol_lock);
-    }
+    pthread_mutex_lock(&Sol_lock);
+    Read_BBCost();
+    pthread_mutex_unlock(&Sol_lock);
 
     if (SubproblemSize > 0) {
         if (DelaunayPartitioning)
@@ -239,11 +234,15 @@ int LKH(char *problem_file, unsigned long trial_num)
 
     /* Find a specified number (Runs) of local optima */
 
-    for (Run = 1; Run <= Runs; Run++) {
+    MaxTrials = 10000;
+
+    while (true) {
         LastTime = GetTime();
-        if (BB_Complete || LastTime - StartTime >= TimeLimit) {
+        if (BB_Complete || BB_SolFound || LastTime - StartTime >= TimeLimit) {
+            /*
             if (TraceLevel >= 1)
                 printff("*** Time limit exceeded ***\n");
+            */
             break;
         }
         Cost = FindTour();      /* using the Lin-Kernighan heuristic */
@@ -257,12 +256,16 @@ int LKH(char *problem_file, unsigned long trial_num)
                 if (TraceLevel >= 1 &&
                     (CurrentPenalty < OldPenalty ||
                      (CurrentPenalty == OldPenalty && Cost < OldCost))) {
+                    
+                    /*
                     if (CurrentPenalty)
                         printff("  Merged with %d: Cost = " GainFormat,
                                 i + 1, Cost);
                     else
                         printff("  Merged with %d: Cost = " GainFormat "_"
                                 GainFormat, i + 1, CurrentPenalty, Cost);
+                    */
+
                     if (Optimum != MINUS_INFINITY && Optimum != 0) {
                         if (ProblemType != CCVRP && ProblemType != TRP &&
                             ProblemType != MLP &&
@@ -275,7 +278,7 @@ int LKH(char *problem_file, unsigned long trial_num)
                                     100.0 * (CurrentPenalty - Optimum) /
                                     Optimum);
                     }
-                    printff("\n");
+                    //printff("\n");
                 }
             }
             if (!HasFitness(CurrentPenalty, Cost)) {

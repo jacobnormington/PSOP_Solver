@@ -83,4 +83,4 @@ $(OBJDIR)/%.o: $(LKH_LIB)/%.c
 	$(CG) $(OPTIMIZATION) $< -o $@
 
 clean:
-	rm -rf $(OBJDIR)/*.o sop_solver
+	rm -rf $(OBJDIR)/*.o sop_solver obj

@@ -1254,7 +1254,7 @@ void solver::enumerate() {
                         best_solution = problem_state.cur_solution;
                         best_cost = problem_state.cur_cost;
                         if (enable_lkh) {
-                            for (int i = 0; i < node_count; i++) bestBB_tour[i] = best_solution[i];
+                            for (int i = 0; i < node_count; i++) bestBB_tour[i] = best_solution[i] + 1;
                             BB_SolFound = true;
                         }
 
@@ -1276,7 +1276,7 @@ void solver::enumerate() {
                         cout << " at time = " << std::chrono::duration<double>(std::chrono::system_clock::now() - start_time_limit).count() << " [" << thread_load[thread_id].data_cnt << " ]" << endl;
                         
                         /*
-                        cout << "current solution is";
+                        cout << "current solution is ";
                         for (auto node : problem_state.cur_solution) cout << node << ",";
                         cout <<  endl;
                         */
@@ -1437,7 +1437,7 @@ void solver::enumerate() {
         while(!enumeration_list.empty()) {
             if(EnumerationList_PreProcess(enumeration_list,curlocal_nodes)) continue;
 
-            Check_Restart_Status(enumeration_list, curlocal_nodes);
+            //Check_Restart_Status(enumeration_list, curlocal_nodes);
 
             if (abandon_share || abandon_work) {
                 curlocal_nodes.clear();
@@ -1685,13 +1685,11 @@ bool solver::Grab_from_GPQ(bool reserve) {
 }
 
 void lkh() {
-    unsigned long trial_num = 1000;
     while(!BB_Complete) {
+        LKH(&f_name[0]);
         if (initial_LKHRun) {
-            LKH(&f_name[0],trial_num);
             initial_LKHRun = false;
         }
-        else LKH(&f_name[0],INT_MAX);
         BB_SolFound = false;
     }
     return;
@@ -1955,15 +1953,15 @@ void solver::solve(string filename,int thread_num) {
 
     Local_PoolConfig(float((node_count - 1)*(node_count-2))/float(total_edges));
 
-    bestBB_tour = new int[node_count];
-    for (int i = 0; i < node_count; i++) bestBB_tour[i] = -1;
-
     cout << "Nearest Neighbor Heuristic Initialized" << endl;
     vector<int> temp_solution;
     temp_solution.push_back(0);
     best_solution = nearest_neightbor(&temp_solution);
     
     cout << "Initial Best Solution Is " << best_cost << endl;
+
+    bestBB_tour = new int[node_count];
+    for (int i = 0; i < node_count; i++) bestBB_tour[i] = best_solution[i] + 1;
     
     promise_Tlimit = (thread_total * exploitation_per) / tgroup_ratio;
     cout << "Maximum exploitation group during thread restart is set to " << promise_Tlimit << endl;

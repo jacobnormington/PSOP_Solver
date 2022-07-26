@@ -48,94 +48,91 @@ GainType FindTour()
         CurrentPenalty = PLUS_INFINITY;
         CurrentPenalty = BetterPenalty = Penalty ? Penalty() : 0;
     }
-    do {
-        for (Trial = 0; Trial <= MaxTrials; Trial++) {
-            if (BB_Complete || GetTime() - StartTime >= TimeLimit) {
-                //if (TraceLevel >= 1)
-                //    printff("*** Time limit exceeded ***\n");
-                break;
-            }
-            /* Choose FirstNode at random */
-            if (Dimension == DimensionSaved)
-                FirstNode = &NodeSet[1 + Random() % Dimension];
-            else
-                for (i = Random() % Dimension; i > 0; i--)
-                    FirstNode = FirstNode->Suc;
-            ChooseInitialTour();
-            if ((ProblemType == SOP || ProblemType == M1_PDTSP) &&
-                (InitialTourAlgorithm != SOP_ALG || Trial > 1))
-                SOP_RepairTour();
-            Cost = LinKernighan();
-            if (FirstNode->BestSuc && !TSPTW_Makespan) {
-                /* Merge tour with current best tour */
-                t = FirstNode;
-                while ((t = t->Next = t->BestSuc) != FirstNode);
-                Cost = MergeWithTour();
-            }
-            if (Dimension == DimensionSaved && Cost >= OrdinalTourCost &&
-                BetterCost > OrdinalTourCost && !TSPTW_Makespan) {
-                /* Merge tour with ordinal tour */
-                for (i = 1; i < Dimension; i++)
-                    NodeSet[i].Next = &NodeSet[i + 1];
-                NodeSet[Dimension].Next = &NodeSet[1];
-                Cost = MergeWithTour();
-            }
-            if (CurrentPenalty < BetterPenalty ||
-                (CurrentPenalty == BetterPenalty && Cost < BetterCost)) {
+    for (Trial = 0; Trial <= MaxTrials; Trial++) {
+        if (BB_Complete || GetTime() - StartTime >= TimeLimit) {
+            //if (TraceLevel >= 1)
+            //    printff("*** Time limit exceeded ***\n");
+            break;
+        }
+        /* Choose FirstNode at random */
+        if (Dimension == DimensionSaved)
+            FirstNode = &NodeSet[1 + Random() % Dimension];
+        else
+            for (i = Random() % Dimension; i > 0; i--)
+                FirstNode = FirstNode->Suc;
+        ChooseInitialTour();
+        if ((ProblemType == SOP || ProblemType == M1_PDTSP) &&
+            (InitialTourAlgorithm != SOP_ALG || Trial > 1))
+            SOP_RepairTour();
+        Cost = LinKernighan();
+        if (FirstNode->BestSuc && !TSPTW_Makespan) {
+            /* Merge tour with current best tour */
+            t = FirstNode;
+            while ((t = t->Next = t->BestSuc) != FirstNode);
+            Cost = MergeWithTour();
+        }
+        if (Dimension == DimensionSaved && Cost >= OrdinalTourCost &&
+            BetterCost > OrdinalTourCost && !TSPTW_Makespan) {
+            /* Merge tour with ordinal tour */
+            for (i = 1; i < Dimension; i++)
+                NodeSet[i].Next = &NodeSet[i + 1];
+            NodeSet[Dimension].Next = &NodeSet[1];
+            Cost = MergeWithTour();
+        }
+        if (CurrentPenalty < BetterPenalty ||
+            (CurrentPenalty == BetterPenalty && Cost < BetterCost)) {
 
-                /* Cost Sharing With B&B solver */
-                if (Cost < best_cost) {
-                    pthread_mutex_lock(&Sol_lock);
-                    best_cost = Cost;
-                    printf("Best Cost = %d Found by LKH\n", Cost);
-                    BB_SolFound = false;
-                    pthread_mutex_unlock(&Sol_lock);
-                }
+            /* Cost Sharing With B&B solver */
+            if (Cost < best_cost) {
+                pthread_mutex_lock(&Sol_lock);
+                best_cost = Cost;
+                printf("Best Cost = %lld Found by LKH in trail %d\n", Cost, Trial);
+                BB_SolFound = false;
+                pthread_mutex_unlock(&Sol_lock);
+            }
 
-                if (TraceLevel >= 1) {
-                    //printff("* %d: ", Trial);
-                    //StatusReport(Cost, EntryTime, "");
-                }
-                BetterCost = Cost;
-                BetterPenalty = CurrentPenalty;
-                RecordBetterTour();
-
-                if (BetterPenalty < BestPenalty ||
-                    (BetterPenalty == BestPenalty && BetterCost < BestCost))
-                    WriteTour(OutputTourFileName, BetterTour, BetterCost);
-                if (StopAtOptimum) {
-                    if (ProblemType != CCVRP && ProblemType != TRP &&
-                        ProblemType != MLP &&
-                        MTSPObjective != MINMAX &&
-                        MTSPObjective != MINMAX_SIZE ?
-                        CurrentPenalty == 0 && Cost == Optimum :
-                        CurrentPenalty == Optimum)
-                        break;
-                }
-                AdjustCandidateSet();
-                HashInitialize(HTable);
-                HashInsert(HTable, Hash, Cost);
-            } else if (TraceLevel >= 2) {
-                //printff("  %d: ", Trial);
+            if (TraceLevel >= 1) {
+                //printff("* %d: ", Trial);
                 //StatusReport(Cost, EntryTime, "");
             }
-            /* Record backbones if wanted */
-            if (Trial <= BackboneTrials && BackboneTrials < MaxTrials) {
-                SwapCandidateSets();
-                AdjustCandidateSet();
-                if (Trial == BackboneTrials) {
-                    if (TraceLevel >= 1) {
-                        /*
-                        printff("# %d: Backbone candidates ->\n", Trial);
-                        CandidateReport();
-                        */
-                    }
-                } else
-                    SwapCandidateSets();
+            BetterCost = Cost;
+            BetterPenalty = CurrentPenalty;
+            RecordBetterTour();
+
+            if (BetterPenalty < BestPenalty ||
+                (BetterPenalty == BestPenalty && BetterCost < BestCost))
+                WriteTour(OutputTourFileName, BetterTour, BetterCost);
+            if (StopAtOptimum) {
+                if (ProblemType != CCVRP && ProblemType != TRP &&
+                    ProblemType != MLP &&
+                    MTSPObjective != MINMAX &&
+                    MTSPObjective != MINMAX_SIZE ?
+                    CurrentPenalty == 0 && Cost == Optimum :
+                    CurrentPenalty == Optimum)
+                    break;
             }
+            AdjustCandidateSet();
+            HashInitialize(HTable);
+            HashInsert(HTable, Hash, Cost);
+        } else if (TraceLevel >= 2) {
+            //printff("  %d: ", Trial);
+            //StatusReport(Cost, EntryTime, "");
         }
-        MaxTrials = 400;
-    } while(!BB_Complete && !BB_SolFound);
+        /* Record backbones if wanted */
+        if (Trial <= BackboneTrials && BackboneTrials < MaxTrials) {
+            SwapCandidateSets();
+            AdjustCandidateSet();
+            if (Trial == BackboneTrials) {
+                if (TraceLevel >= 1) {
+                    /*
+                    printff("# %d: Backbone candidates ->\n", Trial);
+                    CandidateReport();
+                    */
+                }
+            } else
+                SwapCandidateSets();
+        }
+    }
     
     if (BackboneTrials > 0 && BackboneTrials < MaxTrials) {
         if (Trial > BackboneTrials ||

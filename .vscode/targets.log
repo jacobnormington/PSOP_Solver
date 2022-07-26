@@ -1,0 +1,1233 @@
+make all --print-data-base --no-builtin-variables --no-builtin-rules --question
+make: *** No rule to make target 'all'.  Stop.
+
+# GNU Make 4.2.1
+# Built for x86_64-pc-linux-gnu
+# Copyright (C) 1988-2016 Free Software Foundation, Inc.
+# License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+# This is free software: you are free to change and redistribute it.
+# There is NO WARRANTY, to the extent permitted by law.
+
+# Make data base, printed on Tue Jul 26 18:11:30 2022
+
+# Variables
+
+# automatic
+<D = $(patsubst %/,%,$(dir $<))
+# automatic
+?F = $(notdir $?)
+# default
+.SHELLFLAGS := -c
+# environment
+XDG_SESSION_CLASS = user
+# environment
+VSCODE_AGENT_FOLDER = /home/taspon/.vscode-server
+# makefile (from 'Makefile', line 8)
+SRC = ./src
+# environment
+XDG_SESSION_TYPE = tty
+# automatic
+?D = $(patsubst %/,%,$(dir $?))
+# automatic
+@D = $(patsubst %/,%,$(dir $@))
+# automatic
+@F = $(notdir $@)
+# default
+MAKE_VERSION := 4.2.1
+# makefile
+CURDIR := /home/taspon/PSOP_Solver
+# makefile (from 'Makefile', line 3)
+LINK = -o
+# makefile
+SHELL = /bin/sh
+# environment
+VSCODE_NLS_CONFIG = {"locale":"en","availableLanguages":{}}
+# makefile (from 'Makefile', line 6)
+OPTIMIZATION_LINK = -O3
+# environment
+_ = /home/taspon/.vscode-server/bin/3b889b090b5ad5793f524b5d1d39fda662b96a2a/node
+# makefile (from 'Makefile', line 5)
+OPTIMIZATION = -O3 -c
+# makefile (from 'Makefile', line 10)
+LKH_LIB = ./lib/LKH
+# makefile (from 'Makefile', line 1)
+MAKEFILE_LIST :=  Makefile
+# 'override' directive
+GNUMAKEFLAGS := 
+# environment
+XDG_DATA_DIRS = /usr/local/share:/usr/share:/var/lib/snapd/desktop
+# environment
+DBUS_SESSION_BUS_ADDRESS = unix:path=/run/user/1001/bus
+# environment
+LESSOPEN = | /usr/bin/lesspipe %s
+# environment
+VSCODE_CWD = /home/taspon
+# environment
+SSH_CONNECTION = 10.114.0.165 54129 10.114.177.239 22
+# environment
+PATH = /home/taspon/.vscode-server/bin/3b889b090b5ad5793f524b5d1d39fda662b96a2a/bin/remote-cli:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+# makefile (from 'Makefile', line 71)
+PROG = sop_solver
+# environment
+XDG_RUNTIME_DIR = /run/user/1001
+# environment
+ELECTRON_RUN_AS_NODE = 1
+# environment
+VSCODE_IPC_HOOK_CLI = /run/user/1001/vscode-ipc-5fea3df9-f467-4541-a33d-f6a9e7e32792.sock
+# default
+.FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell archives jobserver output-sync check-symlink load
+# environment
+LS_COLORS = 
+# automatic
+%F = $(notdir $%)
+# environment
+PWD = /home/taspon/PSOP_Solver
+# default
+.LOADED := 
+# makefile (from 'Makefile', line 2)
+CG = gcc
+# automatic
+*D = $(patsubst %/,%,$(dir $*))
+# environment
+VSCODE_AMD_ENTRYPOINT = vs/workbench/api/node/extensionHostProcess
+# environment
+HOME = /home/taspon
+# environment
+LESSCLOSE = /usr/bin/lesspipe %s %s
+# environment
+LOGNAME = taspon
+# environment
+APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = true
+# automatic
++F = $(notdir $+)
+# environment
+VSCODE_HANDLES_UNCAUGHT_ERRORS = true
+# automatic
+^D = $(patsubst %/,%,$(dir $^))
+# makefile (from 'Makefile', line 15)
+PBB_OBJS = $(patsubst %,$(OBJDIR)/%,$(_PBB_OBJS))
+# environment
+MAKELEVEL := 0
+# default
+MAKE = $(MAKE_COMMAND)
+# default
+MAKECMDGOALS := all
+# environment
+SHLVL = 0
+# makefile (from 'Makefile', line 1)
+CC = g++
+# makefile (from 'Makefile', line 7)
+CXXFLAG = -Wall $(CXX_VERSION)
+# environment
+XDG_SESSION_ID = 5697
+# environment
+USER = taspon
+# makefile
+.DEFAULT_GOAL := sop_solver
+# makefile (from 'Makefile', line 17)
+_PBB_OBJS = main.o solver.o hash.o hungarian.o active_tree.o precedence.o active_allocate.o
+# automatic
+%D = $(patsubst %/,%,$(dir $%))
+# default
+MAKE_COMMAND := make
+# default
+.VARIABLES := 
+# automatic
+*F = $(notdir $*)
+# makefile
+MAKEFLAGS = pqrR
+# makefile (from 'Makefile', line 14)
+LKH_OBJS = $(patsubst %,$(OBJDIR)/%,$(_LKH_OBJS))
+# environment
+MFLAGS = -pqrR
+# environment
+SSH_CLIENT = 10.114.0.165 54129 22
+# automatic
++D = $(patsubst %/,%,$(dir $+))
+# environment
+BROWSER = /home/taspon/.vscode-server/bin/3b889b090b5ad5793f524b5d1d39fda662b96a2a/bin/helpers/browser.sh
+# environment
+VSCODE_HANDLES_SIGPIPE = true
+# default
+MAKEFILES := 
+# automatic
+<F = $(notdir $<)
+# makefile (from 'Makefile', line 12)
+OBJDIR = obj
+# environment
+LC_ALL = C
+# makefile (from 'Makefile', line 4)
+CXX_VERSION = -std=c++14 -pthread
+# automatic
+^F = $(notdir $^)
+# default
+SUFFIXES := 
+# makefile (from 'Makefile', line 9)
+PBB_LIB = ./lib
+# default
+.INCLUDE_DIRS = /usr/include /usr/local/include /usr/include
+# default
+.RECIPEPREFIX := 
+# default
+MAKE_HOST := x86_64-pc-linux-gnu
+# environment
+LANG = C
+# makefile (from 'Makefile', line 18)
+_LKH_OBJS = Activate.o AddCandidate.o AddExtraCandidates.o AddTourCandidates.o AdjustCandidateSet.o AdjustClusters.o AllocateStructures.o Ascent.o Best2OptMove.o Best3OptMove.o Best4OptMove.o Best5OptMove.o BestKOptMove.o BestSpecialOptMove.o Between.o Between_SL.o Between_SSL.o BridgeGain.o BuildKDTree.o C.o CandidateReport.o ChooseInitialTour.o Connect.o CreateCandidateSet.o CreateDelaunayCandidateSet.o CreateNNCandidateSet.o Create_POPMUSIC_CandidateSet.o CreateQuadrantCandidateSet.o CTSP_InitialTour.o CVRP_InitialTour.o Delaunay.o Distance.o Distance_MTSP.o Distance_SOP.o Distance_SPECIAL.o eprintf.o ERXT.o Excludable.o Exclude.o FindTour.o FixedOrCommonCandidates.o Flip.o Flip_SL.o Flip_SSL.o Forbidden.o FreeStructures.o fscanint.o Gain23.o GenerateCandidates.o Genetic.o GeoConversion.o GetTime.o GreedyTour.o Hashing.o Heap.o Improvement.o IsBackboneCandidate.o IsCandidate.o IsCommonEdge.o IsPossibleCandidate.o KSwapKick.o LinKernighan.o LKHmain.o Make2OptMove.o Make3OptMove.o Make4OptMove.o Make5OptMove.o MakeKOptMove.o MergeTourWithBestTour.o MergeWithTourIPT.o Minimum1TreeCost.o MinimumSpanningTree.o MTSP2TSP.o MTSP_InitialTour.o MTSP_Report.o MTSP_WriteSolution.o NormalizeNodeList.o NormalizeSegmentList.o OrderCandidateSet.o PatchCycles.o Penalty_ACVRP.o Penalty_BWTSP.o Penalty_CCVRP.o Penalty_CVRP.o Penalty_CVRPTW.o Penalty_CTSP.o Penalty_1_PDTSP.o Penalty_MLP.o Penalty_M_PDTSP.o Penalty_M1_PDTSP.o Penalty_MTSP.o Penalty_OVRP.o Penalty_PDPTW.o Penalty_PDTSP.o Penalty_PDTSPF.o Penalty_PDTSPL.o Penalty_RCTVRP.o Penalty_SOP.o Penalty_TRP.o Penalty_TSPDL.o Penalty_TSPPD.o Penalty_TSPTW.o Penalty_VRPB.o Penalty_VRPBTW.o Penalty_VRPPD.o PDPTW_Reduce.o printff.o PrintParameters.o Random.o ReadCandidates.o ReadEdges.o ReadLine.o ReadParameters.o ReadPenalties.o ReadProblem.o RecordBestTour.o RecordBetterTour.o RemoveFirstActive.o ResetCandidateSet.o RestoreTour.o SegmentSize.o Sequence.o SFCTour.o SolveCompressedSubproblem.o SINTEF_WriteSolution.o SOP_RepairTour.o STTSP2TSP.o SolveDelaunaySubproblems.o SolveKarpSubproblems.o SolveKCenterSubproblems.o SolveKMeansSubproblems.o SolveRoheSubproblems.o SolveSFCSubproblems.o SolveSubproblem.o SolveSubproblemBorderProblems.o SolveTourSegmentSubproblems.o SOP_InitialTour.o SOP_Report.o StatusReport.o Statistics.o StoreTour.o SymmetrizeCandidateSet.o TrimCandidateSet.o TSPDL_InitialTour.o TSPTW_MakespanCost.o TSPTW_Reduce.o VRPB_Reduce.o BIT.o WriteCandidates.o WritePenalties.o WriteTour.o MergeWithTourGPX2.o gpx.o LKH.o
+# environment
+MOTD_SHOWN = pam
+# variable set hash-table stats:
+# Load=82/1024=8%, Rehash=0, Collisions=11/120=9%
+
+# Pattern-specific Variable Values
+
+# No pattern-specific variable values.
+
+# Directories
+
+# lib (device 66306, inode 37488456): No files, no impossibilities so far.
+# . (device 66306, inode 37488387): 18 files, no impossibilities.
+# src (device 66306, inode 37488529): No files, no impossibilities so far.
+# lib/LKH (device 66306, inode 37488457): No files, no impossibilities so far.
+
+# 18 files, no impossibilities in 4 directories.
+
+# Implicit Rules
+
+obj/%.o: src/%.cpp
+#  recipe to execute (from 'Makefile', line 77):
+	$(CC) $(CXXFLAG) $(OPTIMIZATION) $< -o $@ 
+
+obj/%.o: lib/%.cpp
+#  recipe to execute (from 'Makefile', line 80):
+	$(CC) $(CXXFLAG) $(OPTIMIZATION) $< -o $@
+
+obj/%.o: lib/LKH/%.c
+#  recipe to execute (from 'Makefile', line 83):
+	$(CG) $(OPTIMIZATION) $< -o $@
+
+# 3 implicit rules, 0 (0.0%) terminal.
+
+# Files
+
+# Not a target:
+obj/hash.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/LKHmain.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/CandidateReport.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Distance_MTSP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/LinKernighan.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/WritePenalties.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SINTEF_WriteSolution.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/WriteTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Between.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_MLP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Make4OptMove.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+ 
+obj/RecordBestTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Distance.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/hungarian.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/ChooseInitialTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_CVRPTW.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/fscanint.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SolveKarpSubproblems.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/ReadParameters.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+all:
+#  Command line target.
+#  Implicit rule search has been done.
+#  File does not exist.
+#  File has not been updated.
+
+# Not a target:
+obj/SolveTourSegmentSubproblems.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/precedence.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Between_SSL.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_M_PDTSP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_CVRP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_PDPTW.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/KSwapKick.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/ERXT.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/AdjustClusters.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Statistics.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_VRPBTW.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SolveDelaunaySubproblems.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_PDTSPF.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/AddTourCandidates.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/ReadProblem.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_PDTSPL.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/TSPDL_InitialTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SOP_Report.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/GenerateCandidates.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SegmentSize.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/TrimCandidateSet.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/main.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/BuildKDTree.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SolveCompressedSubproblem.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Make3OptMove.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Best2OptMove.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+Makefile:
+#  Implicit rule search has been done.
+#  Last modified 2022-07-19 18:38:16.360210427
+#  File has been updated.
+#  Successfully updated.
+
+# Not a target:
+obj/Penalty_M1_PDTSP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_ACVRP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/LKH.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/PDPTW_Reduce.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/MTSP2TSP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_1_PDTSP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Flip_SL.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_TRP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Improvement.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/IsCandidate.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/PatchCycles.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_OVRP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Excludable.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Delaunay.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/AdjustCandidateSet.o:
+#  Implicit rule search has not been done.
+ 
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/printff.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/RestoreTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/PrintParameters.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/IsPossibleCandidate.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/ReadCandidates.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/TSPTW_Reduce.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/IsBackboneCandidate.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/WriteCandidates.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/GetTime.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/ReadLine.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/MTSP_InitialTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/MergeWithTourIPT.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Best5OptMove.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_TSPDL.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/CreateDelaunayCandidateSet.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/CreateNNCandidateSet.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/CVRP_InitialTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/NormalizeNodeList.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Between_SL.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/MakeKOptMove.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/MergeTourWithBestTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/FreeStructures.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/MinimumSpanningTree.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/AddExtraCandidates.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/eprintf.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_CTSP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/gpx.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_PDTSP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Exclude.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SolveSubproblem.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_TSPPD.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/STTSP2TSP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/CreateQuadrantCandidateSet.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/ReadPenalties.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/active_allocate.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Distance_SPECIAL.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Flip.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+.DEFAULT:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Random.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/BridgeGain.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SFCTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Activate.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Genetic.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SolveSFCSubproblems.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Best4OptMove.o:
+ 
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Make5OptMove.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/CreateCandidateSet.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/VRPB_Reduce.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/CTSP_InitialTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_VRPB.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_VRPPD.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+clean:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 86):
+	rm -rf $(OBJDIR)/*.o sop_solver
+
+# Not a target:
+obj/Connect.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/FindTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Hashing.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/StoreTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_BWTSP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/ReadEdges.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_RCTVRP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/MTSP_Report.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/FixedOrCommonCandidates.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Best3OptMove.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/solver.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/IsCommonEdge.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/NormalizeSegmentList.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SolveSubproblemBorderProblems.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SolveRoheSubproblems.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SOP_RepairTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/MergeWithTourGPX2.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+sop_solver: obj/main.o obj/solver.o obj/hash.o obj/hungarian.o obj/active_tree.o obj/precedence.o obj/active_allocate.o obj/Activate.o obj/AddCandidate.o obj/AddExtraCandidates.o obj/AddTourCandidates.o obj/AdjustCandidateSet.o obj/AdjustClusters.o obj/AllocateStructures.o obj/Ascent.o obj/Best2OptMove.o obj/Best3OptMove.o obj/Best4OptMove.o obj/Best5OptMove.o obj/BestKOptMove.o obj/BestSpecialOptMove.o obj/Between.o obj/Between_SL.o obj/Between_SSL.o obj/BridgeGain.o obj/BuildKDTree.o obj/C.o obj/CandidateReport.o obj/ChooseInitialTour.o obj/Connect.o obj/CreateCandidateSet.o obj/CreateDelaunayCandidateSet.o obj/CreateNNCandidateSet.o obj/Create_POPMUSIC_CandidateSet.o obj/CreateQuadrantCandidateSet.o obj/CTSP_InitialTour.o obj/CVRP_InitialTour.o obj/Delaunay.o obj/Distance.o obj/Distance_MTSP.o obj/Distance_SOP.o obj/Distance_SPECIAL.o obj/eprintf.o obj/ERXT.o obj/Excludable.o obj/Exclude.o obj/FindTour.o obj/FixedOrCommonCandidates.o obj/Flip.o obj/Flip_SL.o obj/Flip_SSL.o obj/Forbidden.o obj/FreeStructures.o obj/fscanint.o obj/Gain23.o obj/GenerateCandidates.o obj/Genetic.o obj/GeoConversion.o obj/GetTime.o obj/GreedyTour.o obj/Hashing.o obj/Heap.o obj/Improvement.o obj/IsBackboneCandidate.o obj/IsCandidate.o obj/IsCommonEdge.o obj/IsPossibleCandidate.o obj/KSwapKick.o obj/LinKernighan.o obj/LKHmain.o obj/Make2OptMove.o obj/Make3OptMove.o obj/Make4OptMove.o obj/Make5OptMove.o obj/MakeKOptMove.o obj/MergeTourWithBestTour.o obj/MergeWithTourIPT.o obj/Minimum1TreeCost.o obj/MinimumSpanningTree.o obj/MTSP2TSP.o obj/MTSP_InitialTour.o obj/MTSP_Report.o obj/MTSP_WriteSolution.o obj/NormalizeNodeList.o obj/NormalizeSegmentList.o obj/OrderCandidateSet.o obj/PatchCycles.o obj/Penalty_ACVRP.o obj/Penalty_BWTSP.o obj/Penalty_CCVRP.o obj/Penalty_CVRP.o obj/Penalty_CVRPTW.o obj/Penalty_CTSP.o obj/Penalty_1_PDTSP.o obj/Penalty_MLP.o obj/Penalty_M_PDTSP.o obj/Penalty_M1_PDTSP.o obj/Penalty_MTSP.o obj/Penalty_OVRP.o obj/Penalty_PDPTW.o obj/Penalty_PDTSP.o obj/Penalty_PDTSPF.o obj/Penalty_PDTSPL.o obj/Penalty_RCTVRP.o obj/Penalty_SOP.o obj/Penalty_TRP.o obj/Penalty_TSPDL.o obj/Penalty_TSPPD.o obj/Penalty_TSPTW.o obj/Penalty_VRPB.o obj/Penalty_VRPBTW.o obj/Penalty_VRPPD.o obj/PDPTW_Reduce.o obj/printff.o obj/PrintParameters.o obj/Random.o obj/ReadCandidates.o obj/ReadEdges.o obj/ReadLine.o obj/ReadParameters.o obj/ReadPenalties.o obj/ReadProblem.o obj/RecordBestTour.o obj/RecordBetterTour.o obj/RemoveFirstActive.o obj/ResetCandidateSet.o obj/RestoreTour.o obj/SegmentSize.o obj/Sequence.o obj/SFCTour.o obj/SolveCompressedSubproblem.o obj/SINTEF_WriteSolution.o obj/SOP_RepairTour.o obj/STTSP2TSP.o obj/SolveDelaunaySubproblems.o obj/SolveKarpSubproblems.o obj/SolveKCenterSubproblems.o obj/SolveKMeansSubproblems.o obj/SolveRoheSubproblems.o obj/SolveSFCSubproblems.o obj/SolveSubproblem.o obj/SolveSubproblemBorderProblems.o obj/SolveTourSegmentSubproblems.o obj/SOP_InitialTour.o obj/SOP_Report.o obj/StatusReport.o obj/Statistics.o obj/StoreTour.o obj/SymmetrizeCandidateSet.o obj/TrimCandidateSet.o obj/TSPDL_InitialTour.o obj/TSPTW_MakespanCost.o obj/TSPTW_Reduce.o obj/VRPB_Reduce.o obj/BIT.o obj/WriteCandidates.o obj/WritePenalties.o obj/WriteTour.o obj/MergeWithTourGPX2.o obj/gpx.o obj/LKH.o
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 74):
+	$(CC) $(CXXFLAG) $(OPTIMIZATION_LINK) $(LINK) $(PROG) $^
+
+# Not a target:
+obj/BestSpecialOptMove.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_SOP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/StatusReport.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/GreedyTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/AddCandidate.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/BestKOptMove.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/OrderCandidateSet.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/AllocateStructures.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Heap.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Sequence.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SymmetrizeCandidateSet.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/active_tree.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/GeoConversion.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Ascent.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/RemoveFirstActive.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_CCVRP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/RecordBetterTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/BIT.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Gain23.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Make2OptMove.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Forbidden.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Distance_SOP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SolveKCenterSubproblems.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/TSPTW_MakespanCost.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/C.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Create_POPMUSIC_CandidateSet.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Minimum1TreeCost.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_MTSP.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/ResetCandidateSet.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SOP_InitialTour.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/SolveKMeansSubproblems.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/MTSP_WriteSolution.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Penalty_TSPTW.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+obj/Flip_SSL.o:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# files hash-table stats:
+ 
+# Load=167/1024=16%, Rehash=0, Collisions=60/338=18%
+# VPATH Search Paths
+
+# No 'vpath' search paths.
+
+# No general ('VPATH' variable) search path.
+
+# strcache buffers: 1 (0) / strings = 190 / storage = 3495 B / avg = 18 B
+# current buf: size = 8162 B / used = 3495 B / count = 190 / avg = 18 B
+
+# strcache performance: lookups = 201 / hit rate = 5%
+# hash-table stats:
+# Load=190/8192=2%, Rehash=0, Collisions=7/201=3%
+# Finished Make data base on Tue Jul 26 18:11:30 2022
+
+ 

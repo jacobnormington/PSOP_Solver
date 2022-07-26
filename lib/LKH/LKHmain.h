@@ -5,7 +5,7 @@
 #include "Genetic.h"
 #include "BIT.h"
 
-int LKH(char *problem_file, unsigned long trial_num);
+int LKH(char *problem_file);
 void Clean_Mem();
 void Reset_Parameter();
 

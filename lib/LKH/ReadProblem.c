@@ -1922,8 +1922,11 @@ void Read_BBCost(void)
         if (k == Dimension - 1)
             i = First->Id;
     }
-    printf("\n");
     N = FirstNode;
+        do {
+        if (!N->V)
+            eprintf("TOUR_SECTION: Node is missing: %d", N->Id);
+    } while ((N = N->Suc) != FirstNode);
     if (ProblemType == HPP)
         Dimension++;
     if (Asymmetric)
