@@ -1688,7 +1688,7 @@ bool solver::Grab_from_GPQ(bool reserve) {
 
 void lkh() {
     while(!BB_Complete) {
-        LKH(&f_name[0]);
+        LKH(&f_name[0],initial_LKHRun);
         if (initial_LKHRun) {
             initial_LKHRun = false;
         }
@@ -1777,18 +1777,21 @@ void solver::solve_parallel(int thread_num, int pool_size) {
                     best_solution = target.cur_solution;
                     best_cost = target.cur_cost;
                 }
-                target.hungarian_solver.fix_row(cur_node, taken_node);
-                target.hungarian_solver.fix_column(taken_node, cur_node);
-                target.hungarian_solver.solve_dynamic();
-                target.load_info = target.hungarian_solver.get_matching_cost()/2;
-                solver_container->push_back(target);
 
+                if (target.cur_cost < best_cost) {
+                    target.hungarian_solver.fix_row(cur_node, taken_node);
+                    target.hungarian_solver.fix_column(taken_node, cur_node);
+                    target.hungarian_solver.solve_dynamic();
+                    target.load_info = target.hungarian_solver.get_matching_cost()/2;
+                    solver_container->push_back(target);
+                    target.hungarian_solver.undue_row(cur_node, taken_node);
+                    target.hungarian_solver.undue_column(taken_node, cur_node);
+                }
+                
+                target.cur_solution.pop_back();
                 target.taken_arr[taken_node] = 0;
                 for (int vertex : dependent_graph[taken_node]) target.depCnt[vertex]++;
                 target.cur_cost -= cost_graph[cur_node][taken_node].weight;
-                target.cur_solution.pop_back();
-                target.hungarian_solver.undue_row(cur_node, taken_node);
-                target.hungarian_solver.undue_column(taken_node, cur_node);
             }
         }
         else solver_container->push_back(target);
@@ -1804,7 +1807,7 @@ void solver::solve_parallel(int thread_num, int pool_size) {
 
     int thread_cnt = 0;
     //cout << "GPQ initial depth is " << GPQ.back().cur_solution.size() << endl;
-    cout << "Initial GPQ size is " << GPQ.Unknown.size() << endl;
+    //cout << "Initial GPQ size is " << GPQ.Unknown.size() << endl;
     //calculate_standard_deviation();
     
     //Assign GPQ subproblem into solver;
@@ -1866,8 +1869,6 @@ void solver::solve_parallel(int thread_num, int pool_size) {
     }
 
     time_point = chrono::high_resolution_clock::now();
-
-    if (enable_lkh) LKH_thread = thread(lkh);
 
     for (int i = 0; i < thread_num; i++) {
         Thread_manager[i] = thread(&solver::enumerate,move(solvers[i]));
@@ -2001,6 +2002,8 @@ void solver::solve(string filename,int thread_num) {
     for (int i = 0; i < thread_total; i++) initial_hungstate.push_back(default_state.hungarian_solver);
     steal_cnt = vector<int>(thread_total,0);
     enumerated_nodes = vector<unsigned_long_64>(thread_total);
+
+    if (enable_lkh) LKH_thread = thread(lkh);
     
     auto start_time = chrono::high_resolution_clock::now();
     solve_parallel(thread_total,global_pool_size);

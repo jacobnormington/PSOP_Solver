@@ -157,7 +157,7 @@ void Reset_Parameter() {
     return;
 }
 
-int LKH(char *problem_file)
+int LKH(char *problem_file, bool initial_LKHRun)
 {
     Reset_Parameter();
     GainType Cost, OldOptimum;
@@ -183,9 +183,11 @@ int LKH(char *problem_file)
         MergeWithTourGPX2;
     ReadProblem();
 
-    pthread_mutex_lock(&Sol_lock);
-    Read_BBCost();
-    pthread_mutex_unlock(&Sol_lock);
+    if (!initial_LKHRun) {
+        pthread_mutex_lock(&Sol_lock);
+        Read_BBCost();
+        pthread_mutex_unlock(&Sol_lock);
+    }
 
     if (SubproblemSize > 0) {
         if (DelaunayPartitioning)
