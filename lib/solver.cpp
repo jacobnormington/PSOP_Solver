@@ -160,6 +160,8 @@ static vector<double> steal_wait;
 static vector<vector<double>> proc_time;
 static vector<int> steal_cnt;
 
+thread LKH_thread;
+
 void solver::assign_parameter(vector<string> setting) {
     t_limit = atoi(setting[0].c_str());
     cout << "Time limit = " << t_limit << endl;
@@ -1863,8 +1865,9 @@ void solver::solve_parallel(int thread_num, int pool_size) {
         }
     }
 
-
     time_point = chrono::high_resolution_clock::now();
+
+    if (enable_lkh) LKH_thread = thread(lkh);
 
     for (int i = 0; i < thread_num; i++) {
         Thread_manager[i] = thread(&solver::enumerate,move(solvers[i]));
@@ -1998,9 +2001,6 @@ void solver::solve(string filename,int thread_num) {
     for (int i = 0; i < thread_total; i++) initial_hungstate.push_back(default_state.hungarian_solver);
     steal_cnt = vector<int>(thread_total,0);
     enumerated_nodes = vector<unsigned_long_64>(thread_total);
-
-    thread LKH_thread;
-    if (enable_lkh) LKH_thread = thread(lkh);
     
     auto start_time = chrono::high_resolution_clock::now();
     solve_parallel(thread_total,global_pool_size);
