@@ -74,6 +74,7 @@ $(PROG): $(PBB_OBJS) $(LKH_OBJS)
 	$(CC) $(CXXFLAG) $(OPTIMIZATION_LINK) $(LINK) $(PROG) $^
 
 $(OBJDIR)/%.o: $(SRC)/%.cpp
+	mkdir -p $(@D)
 	$(CC) $(CXXFLAG) $(OPTIMIZATION) $< -o $@ 
 
 $(OBJDIR)/%.o: $(PBB_LIB)/%.cpp
