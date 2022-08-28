@@ -986,7 +986,7 @@ void solver::initialize_node_sharing() {
 
 void solver::Check_Restart_Status(deque<node>& enumeration_list, deque<node>& curlocal_nodes) {
 
-    if (thread_id == 0) {
+    if (thread_id == 0 && group_sample_time > 0) {
         auto elasped_time = std::chrono::duration<double>(std::chrono::system_clock::now() - time_point).count();
         
         if (!lb_restart && !group_bestsolcnt && elasped_time > 2) {
