@@ -220,23 +220,13 @@ bool solver::HistoryUtilization(pair<boost::dynamic_bitset<>,int>& key,int* lowe
     int target_ID = history_node->active_threadID;
     int imp = content.prefix_cost - cost;
     
-    if (history_node->explored) {
-        if (imp <= content.lower_bound - best_cost) {
-            return false;
-        }
-        history_node->Entry.store({cost,content.lower_bound - imp});
-        *lowerbound = content.lower_bound - imp;
-        *entry = history_node;
-        history_node->explored = false;
-        history_node->active_threadID = thread_id;
-    }
-    else {
+    if (!history_node->explored) {
         if (enable_threadstop && active_thread > 0) {
             buffer_lock.lock();
             if (request_buffer.empty() || request_buffer.front().target_thread != target_ID || request_buffer.front().target_depth > (int)problem_state.cur_solution.size()) {
                 //num_stop[thread_id].val++;
                 request_buffer.push_front({problem_state.cur_solution.back(),(int)problem_state.cur_solution.size(),
-                                           content.prefix_cost,bucket_location,target_ID});
+                                           content.prefix_cost,target_ID,key.first});
                 if (!stop_sig) {
                     stop_cnt = 0;
                     stop_sig = true;
@@ -244,16 +234,16 @@ bool solver::HistoryUtilization(pair<boost::dynamic_bitset<>,int>& key,int* lowe
             }
             buffer_lock.unlock();
         }
-        
-        if (imp <= content.lower_bound - best_cost) {
-            return false;
-        }
-        history_node->Entry.store({cost,content.lower_bound - imp});
-        *lowerbound = content.lower_bound - imp;
-        *entry = history_node;
-        history_node->explored = false;
-        history_node->active_threadID = thread_id;
     }
+
+    if (imp <= content.lower_bound - best_cost) {
+        return false;
+    }
+    history_node->Entry.store({cost,content.lower_bound - imp});
+    *lowerbound = content.lower_bound - imp;
+    *entry = history_node;
+    history_node->explored = false;
+    history_node->active_threadID = thread_id;
     
     return true;
 }
@@ -460,7 +450,6 @@ void solver::StopCurThread(int target_depth) {
 }
 
 void solver::CheckStop_Request() {
-
     if (!request_buffer.empty() && !thread_load[thread_id].stop_checked) {
         buffer_lock.lock();
         if (request_buffer.empty()) {
@@ -473,10 +462,10 @@ void solver::CheckStop_Request() {
         int target_prefix_cost = request_buffer.back().target_prefix_cost;
         int target_depth = request_buffer.back().target_depth;
         int target_lastnode = request_buffer.back().target_lastnode;
-        int target_key = request_buffer.back().target_key;
+        boost::dynamic_bitset<> key = request_buffer.back().key;
         buffer_lock.unlock();
         
-        if (thread_stop_check(target_prefix_cost, target_depth, target_lastnode, target_key)) StopCurThread(target_depth);
+        if (thread_stop_check(target_prefix_cost, target_depth, target_lastnode, key)) StopCurThread(target_depth);
 
         thread_load[thread_id].stop_checked = true;
         stop_cnt++;
@@ -1167,12 +1156,11 @@ bool solver::EnumerationList_PreProcess(deque<node>& enumeration_list,deque<node
 }
 
 
-bool solver::thread_stop_check(int target_prefix_cost, int target_depth, int target_lastnode, int target_key) {
+bool solver::thread_stop_check(int target_prefix_cost, int target_depth, int target_lastnode, boost::dynamic_bitset<>& src_key) {
 
     if ((int)problem_state.cur_solution.size() < target_depth) return false;
-    else if (problem_state.cur_solution[target_depth-1] != target_lastnode) return false;
-
-    if (cur_active_tree.get_element(target_depth - 1)->deprecated) return true;
+    if (problem_state.cur_solution[target_depth-1] != target_lastnode) return false;
+    if (cur_active_tree.get_element(target_depth-1)->deprecated) return true;
 
     int taken_node = -1;
     int cur_node = problem_state.cur_solution.front();
@@ -1184,12 +1172,9 @@ bool solver::thread_stop_check(int target_prefix_cost, int target_depth, int tar
         bit_vector[problem_state.cur_solution[k]] = true;
         cur_node = taken_node;
     }
-    auto key = make_pair(bit_vector,target_lastnode);
-    size_t val = hash<boost::dynamic_bitset<>>{}(key.first);
-    int bucket_location = (val + key.second) % TABLE_SIZE;
-
-    if (bucket_location != target_key) return false;
-    else if (computed_cost <= target_prefix_cost) return false;
+    
+    if (computed_cost <= target_prefix_cost) return false;
+    if (bit_vector != src_key) return false;
 
     cur_active_tree.get_element(target_depth - 1)->deprecated = true;
 

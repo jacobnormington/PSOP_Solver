@@ -74,8 +74,8 @@ struct request_packet {
     int target_lastnode;
     int target_depth;
     int target_prefix_cost;
-    int target_key;
     int target_thread;
+    boost::dynamic_bitset<> key;
 };
 
 class load_stats {
@@ -233,6 +233,9 @@ class solver {
         deque<instrct_node> wrksteal_pool;
         deque<instrct_node> *local_pool = NULL;
         vector<recur_state> recur_stack;
+        vector<vector<int>> get_cost_matrix(int max_edge_weight);
+        vector<int> nearest_neightbor(vector<int>* partial_solution);
+        
         Active_Allocator Allocator;
         Active_Path cur_active_tree;
         bool abandon_work = false;
@@ -258,9 +261,7 @@ class solver {
         int last_node = -1;
 
         bool stop_init = false;
-    public:
-        vector<vector<int>> get_cost_matrix(int max_edge_weight);
-        vector<int> nearest_neightbor(vector<int>* partial_solution);
+
         bool Wlkload_Request();
         bool HistoryUtilization(pair<boost::dynamic_bitset<>,int>& key,int* lowerbound,bool* found,HistoryNode** entry, int cost);
         bool check_satisfiablity(int* local_cost, vector<int>* tour);
@@ -274,7 +275,7 @@ class solver {
         bool assign_workload(node& transfer_wlkload, pool_dest destination, space_ranking problem_property, HistoryNode* temp_hisnode);
         bool compare_sequence(vector<int>& sequence, int& target_depth);
         bool Steal_Workload();
-        bool thread_stop_check(int target_prefix_cost, int target_depth, int target_lastnode, int target_key);
+        bool thread_stop_check(int target_prefix_cost, int target_depth, int target_lastnode, boost::dynamic_bitset<>& src_key);
         bool EnumerationList_PreProcess(deque<node>& enumeration_list,deque<node>& curlocal_nodes);
         int get_maxedgeweight();
         int dynamic_hungarian(int src, int dest);
@@ -288,11 +289,9 @@ class solver {
         void Shared_Thread_Selection();
         void Generate_SolverState(instrct_node& sequence_node);
         void push_to_historytable(pair<boost::dynamic_bitset<>,int>& key,int lower_bound,HistoryNode** entry,bool backtracked);
-        void assign_parameter(vector<string> setting);
         void check_workload_request(int i);
         void notify_finished();
         size_t transitive_closure(vector<vector<int>>& isucc_graph);
-        void solve(string filename,int thread_num);
         void solve_parallel(int thread_num, int pool_size);
         void retrieve_input(string filename);
         void transitive_redundantcy();
@@ -304,6 +303,9 @@ class solver {
         void Local_PoolConfig(float precedence_density);
         void regenerate_hungstate();
         void CheckStop_Request();
+    public:
+        void solve(string filename,int thread_num);
+        void assign_parameter(vector<string> setting);
 };
 
 #endif
