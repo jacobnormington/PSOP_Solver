@@ -22,8 +22,9 @@ class Active_Path {
         Active_Node* back();
         HistoryNode* back_history();
         int upward_propagation(Active_Allocator& Allocator);
+        int return_stop_depth(vector<int>& cur_solution, int initial_depth);
         size_t get_size();
-        bool push_back(int children_num, HistoryNode* his_node, Active_Allocator& Allocator);
+        bool push_back(int node_num, int children_num, HistoryNode* his_node, Active_Allocator& Allocator);
         bool incre_children_cnt(Active_Allocator& Allocator);
         void collect_deprecated_nodes(Active_Allocator& Allocator, int depth);
         void generate_path(Active_Path& partial_path);

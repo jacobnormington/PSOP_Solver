@@ -112,13 +112,13 @@ static vector<vector<int>> dependent_graph;
 static vector<vector<int>> outgoing_graph;
 static vector<vector<edge>> in_degree;
 static vector<vector<edge>> hung_graph;
-static vector<vector<edge>> cost_graph;
 static vector<Hungarian> initial_hungstate;
 static sop_state default_state;
 static vector<bool_64> abandon_wlk_array;
 static vector<lptr_64> glp;
 static vector<mutex_64> lp_lock;
 static vector<unsigned_long_64> enumerated_nodes;
+vector<vector<edge>> cost_graph;
 
 //Restart Variable
 static int promise_Tlimit = 0;
@@ -202,23 +202,14 @@ bool solver::HistoryUtilization(pair<boost::dynamic_bitset<>,int>& key,int* lowe
     *lowerbound = content.lower_bound;
 
     if (cost >= content.prefix_cost) return false;
-
-    int target_ID = history_node->active_threadID;
+    
     int imp = content.prefix_cost - cost;
     
     if (!history_node->explored) {
-        if (enable_threadstop && active_thread > 0) {
-            buffer_lock.lock();
-            if (request_buffer.empty() || request_buffer.front().target_thread != target_ID || request_buffer.front().target_depth > (int)problem_state.cur_solution.size()) {
-                //num_stop[thread_id].val++;
-                request_buffer.push_front({problem_state.cur_solution.back(),(int)problem_state.cur_solution.size(),
-                                           content.prefix_cost,target_ID,key.first});
-                if (!stop_sig) {
-                    stop_cnt = 0;
-                    stop_sig = true;
-                }
+        if (enable_threadstop) {
+            for (int i = 0; i < thread_total; i++) {
+                thread_load[i].stop_sig = true;
             }
-            buffer_lock.unlock();
         }
     }
 
@@ -437,37 +428,11 @@ void solver::StopCurThread(int target_depth) {
 
 void solver::CheckStop_Request() {
 
-    if (!request_buffer.empty() && !thread_load[thread_id].stop_checked) {
-        buffer_lock.lock();
-        if (request_buffer.empty()) {
-            stop_sig = false;
-            stop_cnt = 0;
-            for (int i = 0; i < thread_total; i++) thread_load[i].stop_checked = false;
-            buffer_lock.unlock();
-            return;
+    if (thread_load[thread_id].stop_sig && !stop_init) {
+        thread_load[thread_id].stop_sig = false;
+        if ((stop_depth = cur_active_tree.return_stop_depth(problem_state.cur_solution, problem_state.initial_depth)) != -1) {
+            StopCurThread(stop_depth);
         }
-        int target_prefix_cost = request_buffer.back().target_prefix_cost;
-        int target_depth = request_buffer.back().target_depth;
-        int target_lastnode = request_buffer.back().target_lastnode;
-        boost::dynamic_bitset<> key = request_buffer.back().key;
-        buffer_lock.unlock();
-        
-        if (thread_stop_check(target_prefix_cost, target_depth, target_lastnode, key)) StopCurThread(target_depth);
-
-        thread_load[thread_id].stop_checked = true;
-        stop_cnt++;
-
-        pause_lock.lock();
-        if (stop_cnt >= active_thread) {
-            buffer_lock.lock();
-            request_buffer.pop_back();
-            for (int i = 0; i < thread_total; i++) thread_load[i].stop_checked = false;
-            stop_cnt = 0;
-            if (request_buffer.empty()) stop_sig = false;
-            else stop_sig = true;
-            buffer_lock.unlock();
-        }
-        pause_lock.unlock();
     }
 
     return;
@@ -536,6 +501,7 @@ void solver::Generate_SolverState(instrct_node& sequence_node) {
     problem_state.depCnt = default_state.depCnt;
 
     problem_state.cur_solution.push_back(0);
+    problem_state.history_arr.push_back(NULL);
     problem_state.taken_arr[cur_node] = 1;
     for (int vertex : dependent_graph[cur_node]) problem_state.depCnt[vertex]--;
     counter++;
@@ -560,6 +526,7 @@ void solver::Generate_SolverState(instrct_node& sequence_node) {
     current_hisnode = sequence_node.root_his_node;
     
     cur_active_tree.generate_path(sequence_node.partial_active_path);
+
     cur_active_tree.set_threadID(thread_id, thread_total);
     if (current_hisnode != NULL && !current_hisnode->explored) {
         current_hisnode->active_threadID = thread_id;
@@ -1122,12 +1089,7 @@ bool solver::Check_Local_Pool(deque<node>& enumeration_list,deque<node>& curloca
 }
 
 bool solver::EnumerationList_PreProcess(deque<node>& enumeration_list,deque<node>& curlocal_nodes) {
-    if (enumeration_list.back().lb >= best_cost 
-        || stop_init
-        || (enable_threadstop && enumeration_list.back().his_entry != NULL 
-                              && enumeration_list.back().his_entry->Entry.load().prefix_cost < enumeration_list.back().partial_cost)
-       )
-    {   
+    if (enumeration_list.back().lb >= best_cost || stop_init) {   
         cur_active_tree.incre_children_cnt(Allocator);
         if (enumeration_list.back().his_entry != NULL && enumeration_list.back().his_entry->active_threadID == thread_id) {
             enumeration_list.back().his_entry->explored = true;
@@ -1140,32 +1102,6 @@ bool solver::EnumerationList_PreProcess(deque<node>& enumeration_list,deque<node
         return true;
     }
     return false;
-}
-
-
-bool solver::thread_stop_check(int target_prefix_cost, int target_depth, int target_lastnode, boost::dynamic_bitset<>& src_key) {
-
-    if ((int)problem_state.cur_solution.size() < target_depth) return false;
-    if (problem_state.cur_solution[target_depth-1] != target_lastnode) return false;
-    if (cur_active_tree.get_element(target_depth-1)->deprecated) return true;
-
-    int taken_node = -1;
-    int cur_node = problem_state.cur_solution.front();
-    int computed_cost = 0;
-    boost::dynamic_bitset<> bit_vector(node_count);
-    for (int k = 0; k < target_depth; k++) {
-        taken_node = problem_state.cur_solution[k];
-        computed_cost += cost_graph[cur_node][taken_node].weight;
-        bit_vector[problem_state.cur_solution[k]] = true;
-        cur_node = taken_node;
-    }
-    
-    if (computed_cost <= target_prefix_cost) return false;
-    if (bit_vector != src_key) return false;
-
-    cur_active_tree.get_element(target_depth - 1)->deprecated = true;
-
-    return true;
 }
 
 bool solver::compare_sequence(vector<int>& sequence, int& target_depth) {
@@ -1400,11 +1336,12 @@ void solver::enumerate() {
 
         int lb_liminsert = lb_curlv;
 
-        cur_active_tree.push_back(enumeration_list.size(),current_hisnode,Allocator);
-
-        CheckStop_Request();
+        cur_active_tree.push_back(problem_state.cur_solution.back(),enumeration_list.size(),current_hisnode,Allocator);
 
         while(!enumeration_list.empty()) {
+
+            if (enable_threadstop) CheckStop_Request();
+
             if(EnumerationList_PreProcess(enumeration_list,curlocal_nodes)) continue;
 
             Check_Restart_Status(enumeration_list, curlocal_nodes);

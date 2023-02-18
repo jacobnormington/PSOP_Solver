@@ -85,6 +85,7 @@ class load_stats {
         bool out_of_work;
         bool stop_checked;
         bool resume_checked;
+        bool stop_sig;
         vector<int>* cur_sol;
         space_state space_ranking;
         abandon_action next_action;
@@ -98,6 +99,7 @@ class load_stats {
             stop_checked = false;
             resume_checked = false;
             out_of_work = false;
+            stop_sig = false;
             next_action = abandon_action::EXPLORE_UNKNOWN;
             data_cnt = 0;
         }
@@ -206,6 +208,7 @@ struct sop_state {
     vector<int> depCnt;
     vector<int> taken_arr;
     vector<int> cur_solution;
+    vector<HistoryNode*> history_arr;
     Hungarian hungarian_solver;
     std::chrono::time_point<std::chrono::system_clock> interval_start;
     pair<boost::dynamic_bitset<>,int> key;
@@ -277,7 +280,6 @@ class solver {
         bool assign_workload(node& transfer_wlkload, pool_dest destination, space_ranking problem_property, HistoryNode* temp_hisnode);
         bool compare_sequence(vector<int>& sequence, int& target_depth);
         bool Steal_Workload();
-        bool thread_stop_check(int target_prefix_cost, int target_depth, int target_lastnode, boost::dynamic_bitset<>& src_key);
         bool EnumerationList_PreProcess(deque<node>& enumeration_list,deque<node>& curlocal_nodes);
         int get_maxedgeweight();
         int dynamic_hungarian(int src, int dest);

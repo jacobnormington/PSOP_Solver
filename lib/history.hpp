@@ -20,6 +20,7 @@ struct Active_Node {
     HistoryNode* history_link = NULL;
 	int32_t total_children_cnt = 0;
     int32_t cur_children_cnt = 0;
+	int32_t node_num = -1;
     atomic<int16_t> cur_threadID;
 	atomic<bool> deprecated;
 	mutex nlck;

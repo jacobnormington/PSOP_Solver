@@ -8,6 +8,7 @@
 
 static const int RECYCLED = -2;
 static const int ZOMBIE = -1;
+extern vector<vector<edge>> cost_graph;
 
 mutex active_map_lock;
 
@@ -33,12 +34,12 @@ void Active_Path::set_threadID(int id, int total_id) {
     thread_id = id;
 }
 
-bool Active_Path::push_back(int children_num, HistoryNode* his_node, Active_Allocator& Allocator) {
-
+bool Active_Path::push_back(int node_num, int children_num, HistoryNode* his_node, Active_Allocator& Allocator) {
     Active_Node* n = Allocator.assign_node();
     n->total_children_cnt = children_num;
     n->cur_children_cnt = 0;
     n->cur_threadID = thread_id;
+    n->node_num = node_num;
 
     if (his_node != NULL && his_node->active_threadID == thread_id) {
         n->history_link = his_node;
@@ -94,6 +95,30 @@ bool Active_Path::check_deprecation_status(int level) {
     if (Path[level]->deprecated) return true;
 
     return false;
+}
+
+int Active_Path::return_stop_depth(vector<int>& cur_solution, int initial_depth) {
+    int partial_cost = 0;
+    int prefix_cost = 0;
+
+    for (unsigned i = 1; i < Path.size(); i++) {
+        if (Path[i] != NULL && Path[i]->node_num == cur_solution[i-1]) {
+            Path[i]->nlck.lock();
+            if (Path[i]->history_link != NULL) {
+                prefix_cost = Path[i]->history_link->Entry.load().prefix_cost;
+                if (partial_cost > prefix_cost) {
+                    Path[i]->nlck.unlock();
+                    return i;
+                }
+                //cout << "[" << Path[i]->node_num << "," << cur_solution[i-1] << "]";
+            }
+            Path[i]->nlck.unlock();
+        }
+        partial_cost += cost_graph[cur_solution[i-1]][cur_solution[i]].weight;
+    }
+    //cout << endl;
+
+    return -1;
 }
 
 bool Active_Path::incre_children_cnt(Active_Allocator& Allocator) {
