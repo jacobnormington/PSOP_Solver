@@ -1632,7 +1632,7 @@ void solver::solve_parallel(int thread_num, int pool_size) {
         if (pre_density != 0) solver_container->push_back(initial_state);
         else if (node_count > thread_total) {
             GPQ.Unknown.push_back(instrct_node(initial_state.cur_solution,initial_state.originate,initial_state.load_info,-1,
-                                               Active_Path(initial_state.cur_solution.size()),NULL));
+                                               Active_Path(initial_state.cur_solution.size() - 1),NULL));
         }
 
         initial_state.taken_arr[taken_node] = 0;
@@ -1690,7 +1690,7 @@ void solver::solve_parallel(int thread_num, int pool_size) {
     if (GPQ.Unknown.empty()) {
         for (auto problem : *solver_container) {
             GPQ.Unknown.push_back(instrct_node(problem.cur_solution,problem.originate,problem.load_info,-1,
-                                               Active_Path(problem.cur_solution.size()),NULL));
+                                               Active_Path(problem.cur_solution.size() - 1),NULL));
         }
     }
     sort(GPQ.Unknown.begin(),GPQ.Unknown.end(),GPQ_sort);
@@ -1734,7 +1734,7 @@ void solver::solve_parallel(int thread_num, int pool_size) {
                     counter++;
                 }
 
-                solvers[thread_cnt].cur_active_tree = Active_Path(solvers[thread_cnt].problem_state.cur_solution.size());
+                solvers[thread_cnt].cur_active_tree = Active_Path(solvers[thread_cnt].problem_state.cur_solution.size() - 1);
                 solvers[thread_cnt].cur_active_tree.set_threadID(thread_cnt, thread_total);
                 solvers[thread_cnt].problem_state.load_info = sequence_node.load_info;
                 solvers[thread_cnt].lb_curlv = sequence_node.load_info;

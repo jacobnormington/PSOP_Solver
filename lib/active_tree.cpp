@@ -101,20 +101,21 @@ int Active_Path::return_stop_depth(vector<int>& cur_solution, int initial_depth)
     int partial_cost = 0;
     int prefix_cost = 0;
 
-    for (unsigned i = 1; i < Path.size(); i++) {
-        if (Path[i] != NULL && Path[i]->node_num == cur_solution[i-1]) {
+    for (unsigned i = 1; i < cur_solution.size(); i++) {
+        partial_cost += cost_graph[cur_solution[i-1]][cur_solution[i]].weight;
+        if (Path[i] != NULL) {
+            if (Path[i]->node_num != cur_solution[i]) return -1;
             Path[i]->nlck.lock();
             if (Path[i]->history_link != NULL) {
                 prefix_cost = Path[i]->history_link->Entry.load().prefix_cost;
                 if (partial_cost > prefix_cost) {
                     Path[i]->nlck.unlock();
-                    return i;
+                    return i + 1;
                 }
                 //cout << "[" << Path[i]->node_num << "," << cur_solution[i-1] << "]";
             }
             Path[i]->nlck.unlock();
         }
-        partial_cost += cost_graph[cur_solution[i-1]][cur_solution[i]].weight;
     }
     //cout << endl;
 
