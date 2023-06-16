@@ -40,6 +40,7 @@ vector<bool> picked_list;
 
 float wait_time = 0;
 unsigned long enumerated_nodes = 0;
+double estimated_trimmed_percent = 0.0; //accumulated estimated percentage of entire tree trimmed
 
 int* depCnt;
 int* taken_arr;
@@ -100,12 +101,16 @@ bool nearest_sort(const node& src,const node& dest) {
     return src.nc > dest.nc;
 }
 
-void solver::enumerate(int i) {
+void solver::enumerate(int depth) {
     vector<node> ready_list;
 
     for (int i = node_count-1; i >= 0; i--) {
         if (!depCnt[i] && !taken_arr[i]) {
             ready_list.push_back(node(i,-1,-1));
+        }
+        else if (depCnt[i] && !taken_arr[i]) {
+            //trim that node
+            estimated_trimmed_percent += solver::get_estimated_trimmed_percent(node_count, depth); 
         }
     }
 
@@ -128,6 +133,7 @@ void solver::enumerate(int i) {
             bool taken = false;
             
             if (cur_cost >= best_cost) {
+                estimated_trimmed_percent += solver::get_estimated_trimmed_percent(node_count, depth); 
                 cur_solution.pop_back();
                 cur_cost -= cost_graph[src][dest.n].weight;
                 continue;
@@ -153,14 +159,16 @@ void solver::enumerate(int i) {
                     hungarian_solver.undue_row(src,dest.n);
                     hungarian_solver.undue_column(dest.n,src);
                 }
-                else if (taken && !decision) {
+                else if (taken && !decision) { //pruning based on history table
+                    estimated_trimmed_percent += solver::get_estimated_trimmed_percent(node_count, depth); 
                     key.first[dest.n] = false;
                     key.second = last_element;
                     cur_solution.pop_back();
                     cur_cost -= cost_graph[src][dest.n].weight;
                     continue;
                 }
-                if (temp_lb >= best_cost) {
+                if (temp_lb >= best_cost) { //pruning based on dynamic hungarian
+                    estimated_trimmed_percent += solver::get_estimated_trimmed_percent(node_count, depth);
                     cur_solution.pop_back();
                     cur_cost -= cost_graph[src][dest.n].weight;
                     key.first[dest.n] = false;
@@ -203,7 +211,7 @@ void solver::enumerate(int i) {
         full_solution = false;
         suffix_cost = 0;
     
-        enumerate(i+1);
+        enumerate(depth+1);
 
         for (int vertex : dependent_graph[taken_node]) depCnt[vertex]++;
         taken_arr[taken_node] = 0;
@@ -279,6 +287,7 @@ void solver::solve(string filename,long time_limit) {
 
     cout << best_cost << "," << setprecision(4) << total_time / (float)(1000000) << endl;
     cout << "Total enumerated nodes are " << enumerated_nodes << endl;
+    cout << "Total Trimmed Percent = " << estimated_trimmed_percent << "%" << endl;
     //history_table.average_size();
     //cout << "Total Time Spent On HistoryUtilization Calls is " << wait_time << " s" << endl;
     //cout << "Total Number Of HistoryUtilization Calls is " << num_of_hiscall << endl;
@@ -623,4 +632,14 @@ vector<vector<int>> solver::get_cost_matrix(int max_edge_weight) {
     }
 
     return matrix;
+}
+
+double solver::get_estimated_trimmed_percent(int node_count, int depth)
+{
+    double trimmed = 1.0;
+    for (int i = 0; i < depth; i++)
+    {
+        trimmed /= (node_count-i);
+    }
+    return trimmed;
 }
