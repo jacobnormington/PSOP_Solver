@@ -65,7 +65,7 @@ class solver {
         void transitive_redundantcy();
         void sort_weight(vector<vector<edge>>& graph);
         void print_dep();
-        double get_estimated_trimmed_percent(int node_count, int depth);
+        //double get_estimated_trimmed_percent(int node_count, int depth);
 };
 
 #endif

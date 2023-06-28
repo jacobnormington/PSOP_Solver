@@ -13,6 +13,7 @@
 #include <bits/stdc++.h>
 #include <unordered_map>
 #include <setjmp.h>
+#include <stdint.h>
 
 using namespace std;
 #define TABLE_SIZE 541065431
@@ -40,11 +41,14 @@ vector<bool> picked_list;
 
 float wait_time = 0;
 unsigned long enumerated_nodes = 0;
-double estimated_trimmed_percent = 0.0; //accumulated estimated percentage of entire tree trimmed
-double trimmed_invalid = 0.0;
-double trimmed_backtracking = 0.0;
-double trimmed_history = 0.0;
-double trimmed_hungarian = 0.0;
+unsigned long long current_node_value = ULLONG_MAX; //the portion out of ULLONG_MAX of the working tree that is under the current node
+unsigned long long leaf_percent = 0; //total portion of the tree, out of ULLONG_MAX, that was fully processed
+unsigned long long estimated_trimmed_percent = 0; //accumulated estimated portion of entire tree trimmed, not including leaves, out of ULLONG_MAX
+unsigned long long trimmed_invalid = 0;
+unsigned long long trimmed_backtracking = 0;
+unsigned long long trimmed_history = 0;
+unsigned long long trimmed_hungarian = 0;
+
 
 int* depCnt;
 int* taken_arr;
@@ -107,19 +111,21 @@ bool nearest_sort(const node& src,const node& dest) {
 
 void solver::enumerate(int depth) {
     vector<node> ready_list;
+    unsigned long long parent_node_value = current_node_value; //the portion out of ULLONG_MAX of the working tree that is under the current node's parent
 
     for (int i = node_count-1; i >= 0; i--) {
         if (!depCnt[i] && !taken_arr[i]) {
             ready_list.push_back(node(i,-1,-1));
         }
-        else if (depCnt[i] && !taken_arr[i]) {
-            //trim that node
-            //out << "Pruning due to precedence constraints. Before: " << estimated_trimmed_percent << ", After: ";
-            estimated_trimmed_percent += solver::get_estimated_trimmed_percent(node_count, depth); 
-            trimmed_invalid += solver::get_estimated_trimmed_percent(node_count, depth); 
-            //cout << estimated_trimmed_percent << endl;
-        }
+        // else if (depCnt[i] && !taken_arr[i]) {
+        //     //trim that node
+        //     //out << "Pruning due to precedence constraints. Before: " << estimated_trimmed_percent << ", After: ";
+        //     estimated_trimmed_percent += solver::get_estimated_trimmed_percent(node_count, depth); 
+        //     trimmed_invalid += solver::get_estimated_trimmed_percent(node_count, depth); 
+        //     //cout << estimated_trimmed_percent << endl;
+        // }
     }
+    current_node_value /= ready_list.size(); //the parent's value is assumed to be split evenly between all children, even though this is not strictly correct
 
     int last_element = cur_solution.back();
     int taken_node = 0;
@@ -141,8 +147,8 @@ void solver::enumerate(int depth) {
             
             if (cur_cost >= best_cost) {
                 //cout << "Backtracking. Before: " << estimated_trimmed_percent << ", After: ";
-                estimated_trimmed_percent += solver::get_estimated_trimmed_percent(node_count, depth); 
-                trimmed_backtracking += solver::get_estimated_trimmed_percent(node_count, depth); 
+                estimated_trimmed_percent += current_node_value; 
+                trimmed_backtracking += current_node_value; 
                 //cout << estimated_trimmed_percent << endl;
                 cur_solution.pop_back();
                 cur_cost -= cost_graph[src][dest.n].weight;
@@ -154,6 +160,7 @@ void solver::enumerate(int depth) {
                     best_cost = cur_cost;
                     cout << "best cost = " << best_cost << " found at time = " << std::chrono::duration<double>(std::chrono::system_clock::now() - start_time_limit).count() << " seconds " << endl;
                 }
+                leaf_percent += current_node_value; 
                 cur_solution.pop_back();
                 cur_cost -= cost_graph[src][dest.n].weight;
                 continue;
@@ -171,8 +178,8 @@ void solver::enumerate(int depth) {
                 }
                 else if (taken && !decision) { //pruning based on history table
                     //cout << "Pruning based on history table. Before: " << estimated_trimmed_percent << ", After: ";
-                    estimated_trimmed_percent += solver::get_estimated_trimmed_percent(node_count, depth); 
-                    trimmed_history += solver::get_estimated_trimmed_percent(node_count, depth); 
+                    estimated_trimmed_percent += current_node_value; 
+                    trimmed_history += current_node_value; 
                     //cout << estimated_trimmed_percent << endl;
                     key.first[dest.n] = false;
                     key.second = last_element;
@@ -182,8 +189,8 @@ void solver::enumerate(int depth) {
                 }
                 if (temp_lb >= best_cost) { //pruning based on dynamic hungarian
                     //cout << "Pruning based on Hungarian Algorithm. Before: " << estimated_trimmed_percent << ", After: ";
-                    estimated_trimmed_percent += solver::get_estimated_trimmed_percent(node_count, depth);
-                    trimmed_hungarian += solver::get_estimated_trimmed_percent(node_count, depth); 
+                    estimated_trimmed_percent += current_node_value;
+                    trimmed_hungarian += current_node_value; 
                     //cout << estimated_trimmed_percent << endl;
                     cur_solution.pop_back();
                     cur_cost -= cost_graph[src][dest.n].weight;
@@ -245,6 +252,7 @@ void solver::enumerate(int depth) {
         
        // cout << "assign to history table time: " << setprecision(4) << total_time / (float)(1000000) << endl;
     }
+    current_node_value = parent_node_value;
     return;
 }
 
@@ -303,11 +311,13 @@ void solver::solve(string filename,long time_limit) {
 
     cout << best_cost << "," << setprecision(4) << total_time / (float)(1000000) << endl;
     cout << "Total enumerated nodes are " << enumerated_nodes << endl;
-    cout << "Total Trimmed Percent = " << estimated_trimmed_percent*100 << "%" << endl;
-    cout << "Trimmed for Precedence Constraints = " << trimmed_invalid*100 << "%" << endl;
-    cout << "Trimmed in Backtracking = " << trimmed_backtracking*100 << "%" << endl;
-    cout << "Trimmed from History Table = " << trimmed_history*100 << "%" << endl;
-    cout << "Trimmed by Hungarian Algorithm = " << trimmed_hungarian*100 << "%" << endl;
+    cout << "Total Enumerated Percent = " << ((double) leaf_percent)/ULLONG_MAX*100 << "%" << endl;
+    cout << "Total Trimmed Percent = " << ((double) estimated_trimmed_percent)/ULLONG_MAX*100 << "%" << endl;
+    cout << "Trimmed for Precedence Constraints = " << ((double) trimmed_invalid)/ULLONG_MAX*100 << "%" << endl;
+    cout << "Trimmed in Backtracking = " << ((double) trimmed_backtracking)/ULLONG_MAX*100 << "%" << endl;
+    cout << "Trimmed from History Table = " << ((double) trimmed_history)/ULLONG_MAX*100 << "%" << endl;
+    cout << "Trimmed by Hungarian Algorithm = " << ((double) trimmed_hungarian)/ULLONG_MAX*100 << "%" << endl;
+    cout << "Total Progress = " << (((double) estimated_trimmed_percent) + leaf_percent)/ULLONG_MAX*100 << "%" << endl;
     //history_table.average_size();
     //cout << "Total Time Spent On HistoryUtilization Calls is " << wait_time << " s" << endl;
     //cout << "Total Number Of HistoryUtilization Calls is " << num_of_hiscall << endl;
@@ -654,12 +664,12 @@ vector<vector<int>> solver::get_cost_matrix(int max_edge_weight) {
     return matrix;
 }
 
-double solver::get_estimated_trimmed_percent(int node_count, int depth)
-{
-    double trimmed = 1.0;
-    for (int i = 0; i < depth; i++)
-    {
-        trimmed /= (node_count-i);
-    }
-    return trimmed;
-}
+// double solver::get_estimated_trimmed_percent(int node_count, int depth)
+// {
+//     double trimmed = 1.0;
+//     for (int i = 0; i < depth; i++)
+//     {
+//         trimmed /= (node_count-i);
+//     }
+//     return trimmed;
+// }
