@@ -13,7 +13,6 @@
 #include <bits/stdc++.h>
 #include <unordered_map>
 #include <setjmp.h>
-#include <stdint.h>
 
 using namespace std;
 #define TABLE_SIZE 541065431
@@ -44,7 +43,7 @@ unsigned long enumerated_nodes = 0;
 unsigned long long current_node_value = ULLONG_MAX; //the portion out of ULLONG_MAX of the working tree that is under the current node
 unsigned long long leaf_percent = 0; //total portion of the tree, out of ULLONG_MAX, that was fully processed
 unsigned long long estimated_trimmed_percent = 0; //accumulated estimated portion of entire tree trimmed, not including leaves, out of ULLONG_MAX
-unsigned long long trimmed_invalid = 0;
+//unsigned long long trimmed_invalid = 0;
 unsigned long long trimmed_backtracking = 0;
 unsigned long long trimmed_history = 0;
 unsigned long long trimmed_hungarian = 0;
@@ -111,7 +110,7 @@ bool nearest_sort(const node& src,const node& dest) {
 
 void solver::enumerate(int depth) {
     vector<node> ready_list;
-    unsigned long long parent_node_value = current_node_value; //the portion out of ULLONG_MAX of the working tree that is under the current node's parent
+    unsigned long long parent_node_value = current_node_value; //the portion out of ULLONG_MAX of the working tree that is under this node, which will be split between its children
 
     for (int i = node_count-1; i >= 0; i--) {
         if (!depCnt[i] && !taken_arr[i]) {
@@ -125,7 +124,8 @@ void solver::enumerate(int depth) {
         //     //cout << estimated_trimmed_percent << endl;
         // }
     }
-    current_node_value /= ready_list.size(); //the parent's value is assumed to be split evenly between all children, even though this is not strictly correct
+    current_node_value = parent_node_value / ready_list.size(); //the parent's value is assumed to be split evenly between all children, even though this is not strictly correct
+    int remaining_share = parent_node_value % ready_list.size(); //remainder is split equally between the first <remaining_share> children
 
     int last_element = cur_solution.back();
     int taken_node = 0;
@@ -210,6 +210,7 @@ void solver::enumerate(int depth) {
         sort(enumeration_list.begin(),enumeration_list.end(),bound_sort);
     }
 
+    int child_num = 0; //the order of each child in this node's enumeration list, 0-indexed, to determine how to split inherited solution space
     while(!enumeration_list.empty()) {
         
         if (enumeration_list.back().lb >= best_cost) {
@@ -233,6 +234,14 @@ void solver::enumerate(int depth) {
         taken_arr[taken_node] = 1;
         full_solution = false;
         suffix_cost = 0;
+
+        if (remaining_share > 0) //if this node's share of the solution space cannot be evenly split between children
+        {
+            if (child_num == 0) //the first X % Y children have their value increased by 1
+                current_node_value++;
+            else if (child_num == remaining_share) //the remaining children have a slightly lower value arbitrarily, guaranteeing that no share is lost by rounding
+                current_node_value--;
+        }
     
         enumerate(depth+1);
 
@@ -253,6 +262,7 @@ void solver::enumerate(int depth) {
        // cout << "assign to history table time: " << setprecision(4) << total_time / (float)(1000000) << endl;
     }
     current_node_value = parent_node_value;
+    child_num++;
     return;
 }
 
@@ -313,7 +323,7 @@ void solver::solve(string filename,long time_limit) {
     cout << "Total enumerated nodes are " << enumerated_nodes << endl;
     cout << "Total Enumerated Percent = " << ((double) leaf_percent)/ULLONG_MAX*100 << "%" << endl;
     cout << "Total Trimmed Percent = " << ((double) estimated_trimmed_percent)/ULLONG_MAX*100 << "%" << endl;
-    cout << "Trimmed for Precedence Constraints = " << ((double) trimmed_invalid)/ULLONG_MAX*100 << "%" << endl;
+    //cout << "Trimmed for Precedence Constraints = " << ((double) trimmed_invalid)/ULLONG_MAX*100 << "%" << endl;
     cout << "Trimmed in Backtracking = " << ((double) trimmed_backtracking)/ULLONG_MAX*100 << "%" << endl;
     cout << "Trimmed from History Table = " << ((double) trimmed_history)/ULLONG_MAX*100 << "%" << endl;
     cout << "Trimmed by Hungarian Algorithm = " << ((double) trimmed_hungarian)/ULLONG_MAX*100 << "%" << endl;
