@@ -17,7 +17,8 @@
 using namespace std;
 #define TABLE_SIZE 541065431
 #define BLOCK_SIZE 81920
-#define ENABLE_PROGRESS_ESTIMATION 1
+#define ENABLE_PROGRESS_ESTIMATION 1            //tracks what percentage of the working tree has been traversed or pruned so far
+#define PROGRESS_ESTIMATION_USE_REMAINDER 0     //if progress estimation is enabled, will use the more accurate but marginally more expensive algorithm
 
 Hash_Map history_table(TABLE_SIZE);
 bool optimal_found = false;
@@ -48,6 +49,9 @@ unsigned long enumerated_nodes = 0;
     unsigned long long trimmed_backtracking = 0; //accumulated estimated portion of entire tree trimmed, not including leaves, out of ULLONG_MAX
     unsigned long long trimmed_history = 0; //accumulated estimated portion of entire tree trimmed, not including leaves, out of ULLONG_MAX
     unsigned long long trimmed_hungarian = 0; //accumulated estimated portion of entire tree trimmed, not including leaves, out of ULLONG_MAX
+    #if PROGRESS_ESTIMATION_USE_REMAINDER
+        bool backtracking_complete = false, history_complete = false, hungarian_complete = false;
+    #endif
 #endif
 
 int* depCnt;
@@ -121,7 +125,9 @@ void solver::enumerate(int depth) {
     #if ENABLE_PROGRESS_ESTIMATION
         unsigned long long parent_node_value = current_node_value; //the portion out of ULLONG_MAX of the working tree that is under this node, which will be split between its children
         current_node_value = parent_node_value / ready_list.size(); //the parent's value is assumed to be split evenly between all children, even though this is not strictly correct
-        //int remaining_share = parent_node_value % ready_list.size(); //remainder never makes enough of a difference to even be visible
+        #if PROGRESS_ESTIMATION_USE_REMAINDER
+            int remaining_share = parent_node_value % ready_list.size(); //remainder never makes enough of a difference to even be visible
+        #endif
         //unsigned long long local_progress_accumulator = 0; //simply for testing if the progress estimation is working correctly
     #endif
 
@@ -133,9 +139,12 @@ void solver::enumerate(int depth) {
     deque<node> enumeration_list;
 
     enumerated_nodes += ready_list.size();
-    // #if ENABLE_PROGRESS_ESTIMATION
-    //     int remainder_not_pruned = 0; //number of children from the first X % Y children that is added to the enumeration_list
-    // #endif
+    #if ENABLE_PROGRESS_ESTIMATION
+        #if PROGRESS_ESTIMATION_USE_REMAINDER
+            int remainder_not_pruned = 0; //number of children from the first X % Y children that is added to the enumeration_list
+        #endif
+    #endif
+
     if (!ready_list.empty()) { //then do pruning
         for (int i = 0; i < (int)ready_list.size(); i++) {
             node dest = ready_list[i];
@@ -145,19 +154,28 @@ void solver::enumerate(int depth) {
             int temp_lb = -1;
             bool taken = false;
 
-            // #if ENABLE_PROGRESS_ESTIMATION
-            //     if (remaining_share > 0) //if this node's share of the solution space cannot be evenly split between children
-            //     {
-            //         if (i == 0) //the first X % Y children have their value increased by 1
-            //             current_node_value++;
-            //         else if (i == remaining_share) //the remaining children have a slightly lower value arbitrarily, guaranteeing that no share is lost by rounding
-            //             current_node_value--;
-            //     }
-            // #endif
+            #if ENABLE_PROGRESS_ESTIMATION
+                #if PROGRESS_ESTIMATION_USE_REMAINDER
+                    if (remaining_share > 0) //if this node's share of the solution space cannot be evenly split between children
+                    {
+                        if (i == 0) //the first X % Y children have their value increased by 1
+                            current_node_value++;
+                        else if (i == remaining_share) //the remaining children have a slightly lower value arbitrarily, guaranteeing that no share is lost by rounding
+                            current_node_value--;
+                    }
+                #endif
+            #endif
             
             if (cur_cost >= best_cost) {
                 #if ENABLE_PROGRESS_ESTIMATION
-                    trimmed_backtracking += current_node_value;
+                    #if PROGRESS_ESTIMATION_USE_REMAINDER
+                        unsigned long long tmp = trimmed_backtracking + current_node_value;
+                        if (tmp < trimmed_backtracking)
+                            backtracking_complete = true;
+                        trimmed_backtracking = tmp;
+                    #else
+                        trimmed_backtracking += current_node_value;
+                    #endif
                     //local_progress_accumulator += current_node_value;
                 #endif
                 cur_solution.pop_back();
@@ -191,7 +209,14 @@ void solver::enumerate(int depth) {
                 }
                 else if (taken && !decision) { //if this path is dominated by another path
                     #if ENABLE_PROGRESS_ESTIMATION
-                        trimmed_history += current_node_value; 
+                        #if PROGRESS_ESTIMATION_USE_REMAINDER
+                            unsigned long long tmp = trimmed_history + current_node_value;
+                            if (tmp < trimmed_history)
+                                history_complete = true;
+                            trimmed_history = tmp;
+                        #else
+                            trimmed_history += current_node_value;
+                        #endif
                         //local_progress_accumulator += current_node_value;
                     #endif
                     key.first[dest.n] = false;
@@ -202,7 +227,14 @@ void solver::enumerate(int depth) {
                 }
                 if (temp_lb >= best_cost) { //pruning based on dynamic hungarian (technically overestimates because history domination can find a better lower bound)
                     #if ENABLE_PROGRESS_ESTIMATION
-                        trimmed_hungarian += current_node_value; 
+                        #if PROGRESS_ESTIMATION_USE_REMAINDER
+                            unsigned long long tmp = trimmed_hungarian + current_node_value;
+                            if (tmp < trimmed_hungarian)
+                                hungarian_complete = true;
+                            trimmed_hungarian = tmp;
+                        #else
+                            trimmed_hungarian += current_node_value;
+                        #endif
                         //local_progress_accumulator += current_node_value;
                     #endif
                     cur_solution.pop_back();
@@ -220,8 +252,12 @@ void solver::enumerate(int depth) {
                 enumeration_list.back().lb = temp_lb;
                 key.first[dest.n] = false;
                 key.second = last_element;
-                // if (remaining_share > 0 && i < remaining_share) 
-                //     remainder_not_pruned++;
+                #if ENABLE_PROGRESS_ESTIMATION
+                    #if PROGRESS_ESTIMATION_USE_REMAINDER
+                        if (remaining_share > 0 && i < remaining_share) 
+                            remainder_not_pruned++;
+                    #endif
+                #endif
             }
         }
         sort(enumeration_list.begin(),enumeration_list.end(),bound_sort);
@@ -246,12 +282,32 @@ void solver::enumerate(int depth) {
     //     }
     // #endif
 
-    //int child_num = 0; //the order of each child in this node's enumeration list, 0-indexed, to determine how to split inherited solution space
+    int child_num = 0; //the order of each child in this node's enumeration list, 0-indexed, to determine how to split inherited solution space
     while(!enumeration_list.empty()) {
+
+        #if ENABLE_PROGRESS_ESTIMATION
+            #if PROGRESS_ESTIMATION_USE_REMAINDER
+                if (remainder_not_pruned > 0) //if this node's share of the solution space cannot be evenly split between children
+                {
+                    if (child_num == 0) //the first X % Y children have their value increased by 1
+                        current_node_value++;
+                    else if (child_num == remainder_not_pruned) //the remaining children have a slightly lower value arbitrarily, guaranteeing that no share is lost by rounding
+                        current_node_value--;
+                }
+            #endif
+        #endif
         
         if (enumeration_list.back().lb >= best_cost) { //you have to check again because best_cost may have changed
             #if ENABLE_PROGRESS_ESTIMATION
-                trimmed_hungarian += current_node_value;
+                #if PROGRESS_ESTIMATION_USE_REMAINDER
+                    unsigned long long tmp = trimmed_hungarian + current_node_value;
+                    if (tmp < trimmed_hungarian)
+                        hungarian_complete = true;
+                    trimmed_hungarian = tmp;
+                #else
+                    trimmed_hungarian += current_node_value;
+                #endif
+                //local_progress_accumulator += current_node_value;
             #endif
             enumeration_list.pop_back();
             continue;
@@ -273,14 +329,6 @@ void solver::enumerate(int depth) {
         taken_arr[taken_node] = 1;
         full_solution = false;
         suffix_cost = 0;
-    
-        // if (remainder_not_pruned > 0) //if this node's share of the solution space cannot be evenly split between children
-        // {
-        //     if (child_num == 0) //the first X % Y children have their value increased by 1
-        //         current_node_value++;
-        //     else if (child_num == remainder_not_pruned) //the remaining children have a slightly lower value arbitrarily, guaranteeing that no share is lost by rounding
-        //         current_node_value--;
-        // }
 
         enumerate(depth+1);
 
@@ -303,7 +351,7 @@ void solver::enumerate(int depth) {
     #if ENABLE_PROGRESS_ESTIMATION
         current_node_value = parent_node_value;
     #endif
-    //child_num++;
+    child_num++;
     return;
 }
 
@@ -366,13 +414,28 @@ void solver::solve(string filename,long time_limit) {
 
     #if ENABLE_PROGRESS_ESTIMATION
         unsigned long long estimated_trimmed_percent = trimmed_backtracking + trimmed_history + trimmed_hungarian;
-        cout << "Total Enumerated Percent = " << ((double) leaf_percent)/ULLONG_MAX*100 << "%" << endl;
-        cout << "Total Trimmed Percent = " << ((double) estimated_trimmed_percent)/ULLONG_MAX*100 << "%" << endl;
-        cout << "Trimmed in Backtracking = " << ((double) trimmed_backtracking)/ULLONG_MAX*100 << "%" << endl;
-        cout << "Trimmed from History Table = " << ((double) trimmed_history)/ULLONG_MAX*100 << "%" << endl;
-        cout << "Trimmed by Hungarian Algorithm = " << ((double) trimmed_hungarian)/ULLONG_MAX*100 << "%" << endl;
-        cout << "Total Progress = " << (((double) estimated_trimmed_percent) + leaf_percent)/ULLONG_MAX*100 << "%" << endl;
-        cout << estimated_trimmed_percent + leaf_percent << " / " << ULLONG_MAX << endl;
+        unsigned long long total_progress = estimated_trimmed_percent + leaf_percent;
+        #if PROGRESS_ESTIMATION_USE_REMAINDER
+            bool trim_complete = estimated_trimmed_percent < trimmed_backtracking || estimated_trimmed_percent < trimmed_history || estimated_trimmed_percent < trimmed_hungarian
+                                    || backtracking_complete || history_complete || hungarian_complete;
+            bool final_complete = total_progress < estimated_trimmed_percent || total_progress < leaf_percent
+                                    || trim_complete;
+            cout << "Total Enumerated Percent = "       << ((double) leaf_percent)/ULLONG_MAX*100 << "%" << endl;
+            cout << "Total Trimmed Percent = "          << (trim_complete ? 100 : ((double) estimated_trimmed_percent)/ULLONG_MAX*100) << "%" << endl;
+            cout << "Trimmed in Backtracking = "        << (backtracking_complete ? 100 : ((double) trimmed_backtracking)/ULLONG_MAX*100) << "%" << endl;
+            cout << "Trimmed from History Table = "     << (history_complete ? 100 : ((double) trimmed_history)/ULLONG_MAX*100) << "%" << endl;
+            cout << "Trimmed by Hungarian Algorithm = " << (hungarian_complete ? 100 : ((double) trimmed_hungarian)/ULLONG_MAX*100) << "%" << endl;
+            cout << "Total Progress = "                 << (final_complete ? 100 : ((double) total_progress)/ULLONG_MAX*100) << "%" << endl;
+            cout << estimated_trimmed_percent + leaf_percent << " / " << ULLONG_MAX << endl;
+        #else
+            cout << "Total Enumerated Percent = "       << ((double) leaf_percent)/ULLONG_MAX*100 << "%" << endl;
+            cout << "Total Trimmed Percent = "          << ((double) estimated_trimmed_percent)/ULLONG_MAX*100 << "%" << endl;
+            cout << "Trimmed in Backtracking = "        << ((double) trimmed_backtracking)/ULLONG_MAX*100 << "%" << endl;
+            cout << "Trimmed from History Table = "     << ((double) trimmed_history)/ULLONG_MAX*100 << "%" << endl;
+            cout << "Trimmed by Hungarian Algorithm = " << ((double) trimmed_hungarian)/ULLONG_MAX*100 << "%" << endl;
+            cout << "Total Progress = "                 << ((double) total_progress)/ULLONG_MAX*100 << "%" << endl;
+            cout << estimated_trimmed_percent + leaf_percent << " / " << ULLONG_MAX << endl;
+        #endif
     #endif
 
     //history_table.average_size();
