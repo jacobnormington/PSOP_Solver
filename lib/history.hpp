@@ -18,16 +18,16 @@ struct HistoryContent {
 
 struct Active_Node {
     HistoryNode* history_link = NULL;
-	int32_t total_children_cnt = 0;
-    int32_t cur_children_cnt = 0;
+	int32_t total_children_cnt = 0; //total number of children of this node
+    int32_t cur_children_cnt = 0;	//number of children processed so far
     atomic<int16_t> cur_threadID;
 	atomic<bool> deprecated;
 	mutex nlck;
 };
 
 struct HistoryNode {
-	atomic<bool> explored;
-	atomic<uint8_t> active_threadID;
+	atomic<bool> explored; //if the subspace under this node has already been fully explored
+	atomic<uint8_t> active_threadID; //the thread that is exploring that subspace
 	atomic<HistoryContent> Entry;
 };
 

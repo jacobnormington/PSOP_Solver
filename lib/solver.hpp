@@ -110,13 +110,15 @@ class edge {
         bool operator==(const edge &rhs) const {return this->src == rhs.src;}
 };
 
+/* Basic structure of a specific partial path, a node in the enumeration tree, not including the full information in an instrct_node. */
 class node {
     public:
-        int n = -1;
-        int lb = -1;
-        int nc = -1;
-        int partial_cost = -1;
-        bool node_invalid = false;
+        int n = -1; //node number
+        int lb = -1; //lower bound cost of this node
+        int nc = -1; //cost to get from the parent to this node
+        int partial_cost = -1; //total cost of path to parent
+        unsigned long long current_node_value = -1; //the portion out of ULLONG_MAX of the working tree that is under this node
+        bool node_invalid = false; //investigate
         HistoryNode* his_entry = NULL;
         Active_Node* act_entry = NULL;
         bool pushed = false;;
@@ -151,24 +153,27 @@ class atomwrapper
         void store(T val) {data.store(val);}
 };
 
+/* Entry in local or global pools containing all the information about a path to regenerate an sop_state. */
 class instrct_node {
     public:
         vector<int> sequence;
         int originate = -1;
         int load_info = -1;
         int parent_lv = -1;
-        bool* invalid_ptr = NULL;
-        bool deprecated = false;
+        bool* invalid_ptr = NULL; //investigate
+        bool deprecated = false; //For Thread Stopping. if this node exists in a redundant subspace and so does not need to be processed
+        unsigned long long current_node_value = -1; //the portion out of ULLONG_MAX of the working tree that is under this node
 
         Active_Path partial_active_path;
         HistoryNode* root_his_node;
         instrct_node(vector<int> sequence_src,int originate_src, int load_info_src, 
-                     int best_costrecord_src, Active_Path temp_active_path, 
+                     int best_costrecord_src, unsigned long long value, Active_Path temp_active_path, 
                      HistoryNode* temp_root_hisnode) {
             sequence = sequence_src;
             originate = originate_src;
             load_info = load_info_src;
             parent_lv = best_costrecord_src;
+            current_node_value = value;
             partial_active_path = temp_active_path;
             root_his_node = temp_root_hisnode;
         }
@@ -200,21 +205,23 @@ class sub_pool {
         }
 };
 
+/* All the information necessary about the current node in the enumeration tree */
 struct sop_state {
     vector<int> depCnt;
-    vector<int> taken_arr;
+    vector<int> taken_arr; //a vector of bits for each node in the graph, 1 for taken, 0 for not taken
     vector<int> cur_solution;
     Hungarian hungarian_solver;
     std::chrono::time_point<std::chrono::system_clock> interval_start;
     pair<boost::dynamic_bitset<>,int> key;
     HistoryNode* cur_parent_hisnode = NULL;
     int cur_cost = 0;
-    int initial_depth = 0;
+    int initial_depth = 0; //number of nodes in the current path
     int suffix_cost = 0;
     ////////////////////
     int originate = -1;
     int load_info = -2;
     ///////////////////
+    unsigned long long current_node_value = -1; //the portion out of ULLONG_MAX of the working tree that is under this node (the partial path represented by this state)
 };
 
 struct recur_state {
@@ -228,6 +235,7 @@ struct Global_Pool {
     deque<instrct_node> Unknown;
 };
 
+/* The local information that each individual thread uses to process paths */
 class solver {
     private:        
         deque<instrct_node> wrksteal_pool;
@@ -247,7 +255,7 @@ class solver {
         bool speed_search = false;
         int lb_curlv = INT_MAX;
 
-        sop_state problem_state;
+        sop_state problem_state; //this thread's current state
         sop_state back_up_state;
         HistoryNode* current_hisnode;
 
@@ -260,52 +268,94 @@ class solver {
         int stop_depth = -1;
         int last_node = -1;
 
-        bool stop_init = false;
+        bool stop_init = false; //whether this thread has ever been stopped before
 
-        bool Wlkload_Request();
-        bool HistoryUtilization(pair<boost::dynamic_bitset<>,int>& key,int* lowerbound,bool* found,HistoryNode** entry, int cost);
+        /* Build graph based on .sop input file. */
+        void retrieve_input(string filename);
+        /* Removes redundant edges from the cost graph. */
+        void transitive_redundantcy();
+        /* Computes the transitive closure of the graph. Used for calculating precedence density. */
+        size_t transitive_closure(vector<vector<int>>& isucc_graph);
+        /* Initialize local pools. */
+        void Local_PoolConfig(float precedence_density);
+        /* Sort the cost graph in ascending order. Required for nearest neighbor heuristic. */
+        void sort_weight(vector<vector<edge>>& graph);
+        /* Find the highest edge weight in the entire cost graph. Required for Hungarian algorithm. */
+        int get_maxedgeweight();
         bool check_satisfiablity(int* local_cost, vector<int>* tour);
         bool Split_local_pool();
-        bool push_to_pool(pool_dest decision, space_ranking problem_property);
+
+        /* Called from solver::solve, divides work among global pool and each thread, and begins the threads with calls to solver::enumerate. */
+        void solve_parallel(int thread_num, int pool_size); 
+        /* Returns true if any solver has a depth different than target_level, false otherwise. */
         bool Split_level_check(deque<sop_state>* solver_container);
-        bool Is_promisethread(int t_id);
-        bool Grab_from_GPQ(bool reserve);
-        bool grab_restartnode();
-        bool Check_Local_Pool(deque<node>& enumeration_list,deque<node>& curlocal_nodes);
-        bool assign_workload(node& transfer_wlkload, pool_dest destination, space_ranking problem_property, HistoryNode* temp_hisnode);
-        bool compare_sequence(vector<int>& sequence, int& target_depth);
-        bool Steal_Workload();
-        bool thread_stop_check(int target_prefix_cost, int target_depth, int target_lastnode, boost::dynamic_bitset<>& src_key);
-        bool EnumerationList_PreProcess(deque<node>& enumeration_list,deque<node>& curlocal_nodes);
-        int get_maxedgeweight();
-        int dynamic_hungarian(int src, int dest);
-        int shared_enumerate(int i);
+
+        /* Recursive function that each thread runs to process its assigned sections of the enumeration tree. */
         void enumerate();
-        int get_mgid();
-        void transfer_wlkload();
-        void retrieve_from_local(deque<node>& curlocal_nodes, deque<node>& enumeration_list);
-        void initialize_node_sharing();
-        void Thread_Selection();
-        void Shared_Thread_Selection();
-        void Generate_SolverState(instrct_node& sequence_node);
-        void push_to_historytable(pair<boost::dynamic_bitset<>,int>& key,int lower_bound,HistoryNode** entry,bool backtracked);
-        void check_workload_request(int i);
         void notify_finished();
-        size_t transitive_closure(vector<vector<int>>& isucc_graph);
-        void solve_parallel(int thread_num, int pool_size);
-        void retrieve_input(string filename);
-        void transitive_redundantcy();
-        void sort_weight(vector<vector<edge>>& graph);
-        void Select_GroupMember(int unpromise_cnt);
-        void Check_Restart_Status(deque<node>& enumeration_list, deque<node>& curlocal_nodes);
-        void ThreadStopDelete_Pool(int& target_depth);
-        void StopCurThread(int target_depth);
-        void Local_PoolConfig(float precedence_density);
+        int shared_enumerate(int i);
+        /* Checks whether the next item to be enumerated should instead be pruned. Returns true if the node was pruned, false otherwise. */
+        bool EnumerationList_PreProcess(deque<node>& enumeration_list,deque<node>& curlocal_nodes);
+        /* Compute the lower bound based on the current hung state with this node added*/
+        int dynamic_hungarian(int src, int dest);
+        /* Compares the current node to an entry in the history table, if possible. Returns false if this node should be pruned, true otherwise. */
+        bool HistoryUtilization(pair<boost::dynamic_bitset<>,int>& key,int* lowerbound,bool* found,HistoryNode** entry, int cost);
+        /* Add an entry to the history table. */
+        void push_to_historytable(pair<boost::dynamic_bitset<>,int>& key,int lower_bound,HistoryNode** entry,bool backtracked);
+
+        /* Build an sop_state based off the information in the given node. */
+        void Generate_SolverState(instrct_node& sequence_node);
+        /* Build a hungarian solver state based upon the problem_state. Used in Generate_SolverState. */
         void regenerate_hungstate();
-        void CheckStop_Request();
+
+        /* Moves a node into a global or local pool. Returns true if the node was added, false if the node was pruned. */
+        bool assign_workload(node& transfer_wlkload, pool_dest destination, space_ranking problem_property, HistoryNode* temp_hisnode);
+        /* Push all nodes from this thread's local pool into a global pool. */
+        bool push_to_pool(pool_dest decision, space_ranking problem_property);
+
+        //Thread Restart
+            void Check_Restart_Status(deque<node>& enumeration_list, deque<node>& curlocal_nodes);
+            int get_mgid();
+            /* Categorize threads by space_state an issue thread restart. Then calls Select_GroupMember. */
+            void Thread_Selection();
+            void Shared_Thread_Selection();
+            /* Determines if a thread is promising. Returns true if the thread is promising and unexplored, false otherwise. */
+            bool Is_promisethread(int t_id);
+            /* Decide upon abandon_action for each thread. */
+            void Select_GroupMember(int unpromise_cnt);
+
+        //Work Stealing
+            /* If the local pool is too small, takes some nodes from enumeration list and moves them into local pool before continuing down the tree. */
+            bool Check_Local_Pool(deque<node>& enumeration_list,deque<node>& curlocal_nodes);
+            /* Undoes solver::Check_Local_Pool. When backtracking, take back nodes from local pool into the enumeration list in order to ensure proper search order. */
+            void retrieve_from_local(deque<node>& curlocal_nodes, deque<node>& enumeration_list);
+            /* Check if you should find more work before backtracking. Returns false if work was found and a new state generated to be followed before backtracking. */
+            bool Wlkload_Request();
+            void initialize_node_sharing();
+            bool grab_restartnode();
+            /* Try to grab a node from global pool. Returns false if work was found and a new state generated, true otherwise. */
+            bool Grab_from_GPQ(bool reserve);
+            /* Repeatedly calls transfer_wlkload in order to find work for an idle thread. */
+            bool Steal_Workload();
+            /* Idle thread randomly chooses a victim thread and takes some nodes from its local_pool to the wrksteal_pool. */
+            void transfer_wlkload();
+            void check_workload_request(int i);
+
+        //Thread Stopping
+            /* For Thread Stopping. Check the request buffer. */
+            void CheckStop_Request();
+            /* Process a request and determine if the current thread needs to be stopped. */
+            bool thread_stop_check(int target_prefix_cost, int target_depth, int target_lastnode, boost::dynamic_bitset<>& src_key);
+            /* Stop the current thread. */
+            void StopCurThread(int target_depth);
+            /* Go on to remove the redundant subspace from global pools after stopping this thread. */
+            void ThreadStopDelete_Pool(int& target_depth);
+            bool compare_sequence(vector<int>& sequence, int& target_depth);
     public:
-        void solve(string filename,int thread_num);
+        /* Takes config information and defines all runtime parameters from those strings. */
         void assign_parameter(vector<string> setting);
+        /* Initial function that does all the necessary sequential preprocessing. */
+        void solve(string filename,int thread_num);
 };
 
 #endif
