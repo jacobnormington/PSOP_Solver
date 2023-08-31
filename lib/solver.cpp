@@ -17,6 +17,8 @@
 using namespace std;
 #define TABLE_SIZE 541065431
 #define BLOCK_SIZE 81920
+#define ENABLE_PROGRESS_ESTIMATION 1            //tracks what percentage of the working tree has been traversed or pruned so far
+#define PROGRESS_ESTIMATION_USE_REMAINDER 0     //if progress estimation is enabled, will use the more accurate but marginally more expensive algorithm
 
 Hash_Map history_table(TABLE_SIZE);
 bool optimal_found = false;
@@ -40,6 +42,17 @@ vector<bool> picked_list;
 
 float wait_time = 0;
 unsigned long enumerated_nodes = 0;
+
+#if ENABLE_PROGRESS_ESTIMATION
+    unsigned long long current_node_value = ULLONG_MAX; //the portion out of ULLONG_MAX of the working tree that is under each child
+    unsigned long long leaf_percent = 0; //total portion of the tree, out of ULLONG_MAX, that was fully processed
+    unsigned long long trimmed_backtracking = 0; //accumulated estimated portion of entire tree trimmed, not including leaves, out of ULLONG_MAX
+    unsigned long long trimmed_history = 0; //accumulated estimated portion of entire tree trimmed, not including leaves, out of ULLONG_MAX
+    unsigned long long trimmed_hungarian = 0; //accumulated estimated portion of entire tree trimmed, not including leaves, out of ULLONG_MAX
+    #if PROGRESS_ESTIMATION_USE_REMAINDER
+        bool backtracking_complete = false, history_complete = false, hungarian_complete = false;
+    #endif
+#endif
 
 int* depCnt;
 int* taken_arr;
@@ -100,7 +113,7 @@ bool nearest_sort(const node& src,const node& dest) {
     return src.nc > dest.nc;
 }
 
-void solver::enumerate(int i) {
+void solver::enumerate(int depth) {
     vector<node> ready_list;
 
     for (int i = node_count-1; i >= 0; i--) {
@@ -108,6 +121,15 @@ void solver::enumerate(int i) {
             ready_list.push_back(node(i,-1,-1));
         }
     }
+
+    #if ENABLE_PROGRESS_ESTIMATION
+        unsigned long long parent_node_value = current_node_value; //the portion out of ULLONG_MAX of the working tree that is under this node, which will be split between its children
+        current_node_value = parent_node_value / ready_list.size(); //the parent's value is assumed to be split evenly between all children, even though this is not strictly correct
+        #if PROGRESS_ESTIMATION_USE_REMAINDER
+            int remaining_share = parent_node_value % ready_list.size(); //remainder never makes enough of a difference to even be visible
+        #endif
+        //unsigned long long local_progress_accumulator = 0; //simply for testing if the progress estimation is working correctly
+    #endif
 
     int last_element = cur_solution.back();
     int taken_node = 0;
@@ -117,8 +139,13 @@ void solver::enumerate(int i) {
     deque<node> enumeration_list;
 
     enumerated_nodes += ready_list.size();
+    #if ENABLE_PROGRESS_ESTIMATION
+        #if PROGRESS_ESTIMATION_USE_REMAINDER
+            int remainder_not_pruned = 0; //number of children from the first X % Y children that is added to the enumeration_list
+        #endif
+    #endif
 
-    if (!ready_list.empty()) {
+    if (!ready_list.empty()) { //then do pruning
         for (int i = 0; i < (int)ready_list.size(); i++) {
             node dest = ready_list[i];
             int src = cur_solution.back();
@@ -126,8 +153,31 @@ void solver::enumerate(int i) {
             cur_cost += cost_graph[src][dest.n].weight;
             int temp_lb = -1;
             bool taken = false;
+
+            #if ENABLE_PROGRESS_ESTIMATION
+                #if PROGRESS_ESTIMATION_USE_REMAINDER
+                    if (remaining_share > 0) //if this node's share of the solution space cannot be evenly split between children
+                    {
+                        if (i == 0) //the first X % Y children have their value increased by 1
+                            current_node_value++;
+                        else if (i == remaining_share) //the remaining children have a slightly lower value arbitrarily, guaranteeing that no share is lost by rounding
+                            current_node_value--;
+                    }
+                #endif
+            #endif
             
             if (cur_cost >= best_cost) {
+                #if ENABLE_PROGRESS_ESTIMATION
+                    #if PROGRESS_ESTIMATION_USE_REMAINDER
+                        unsigned long long tmp = trimmed_backtracking + current_node_value;
+                        if (tmp < trimmed_backtracking)
+                            backtracking_complete = true;
+                        trimmed_backtracking = tmp;
+                    #else
+                        trimmed_backtracking += current_node_value;
+                    #endif
+                    //local_progress_accumulator += current_node_value;
+                #endif
                 cur_solution.pop_back();
                 cur_cost -= cost_graph[src][dest.n].weight;
                 continue;
@@ -138,6 +188,10 @@ void solver::enumerate(int i) {
                     best_cost = cur_cost;
                     cout << "best cost = " << best_cost << " found at time = " << std::chrono::duration<double>(std::chrono::system_clock::now() - start_time_limit).count() << " seconds " << endl;
                 }
+                #if ENABLE_PROGRESS_ESTIMATION
+                    leaf_percent += current_node_value; 
+                    //local_progress_accumulator += current_node_value;
+                #endif
                 cur_solution.pop_back();
                 cur_cost -= cost_graph[src][dest.n].weight;
                 continue;
@@ -147,26 +201,50 @@ void solver::enumerate(int i) {
                 key.first[dest.n] = true;
                 key.second = dest.n;
                 bool decision = HistoryUtilization(key,&temp_lb,&taken,cur_cost);
-                if (!taken) {
+                if (!taken) { //if there is no similar entry in the history table
                     temp_lb = dynamic_hungarian(src,dest.n);
                     push_to_historytable(key,temp_lb,i);
                     hungarian_solver.undue_row(src,dest.n);
                     hungarian_solver.undue_column(dest.n,src);
                 }
-                else if (taken && !decision) {
+                else if (taken && !decision) { //if this path is dominated by another path
+                    #if ENABLE_PROGRESS_ESTIMATION
+                        #if PROGRESS_ESTIMATION_USE_REMAINDER
+                            unsigned long long tmp = trimmed_history + current_node_value;
+                            if (tmp < trimmed_history)
+                                history_complete = true;
+                            trimmed_history = tmp;
+                        #else
+                            trimmed_history += current_node_value;
+                        #endif
+                        //local_progress_accumulator += current_node_value;
+                    #endif
                     key.first[dest.n] = false;
                     key.second = last_element;
                     cur_solution.pop_back();
                     cur_cost -= cost_graph[src][dest.n].weight;
                     continue;
                 }
-                if (temp_lb >= best_cost) {
+                if (temp_lb >= best_cost) { //pruning based on dynamic hungarian (technically overestimates because history domination can find a better lower bound)
+                    #if ENABLE_PROGRESS_ESTIMATION
+                        #if PROGRESS_ESTIMATION_USE_REMAINDER
+                            unsigned long long tmp = trimmed_hungarian + current_node_value;
+                            if (tmp < trimmed_hungarian)
+                                hungarian_complete = true;
+                            trimmed_hungarian = tmp;
+                        #else
+                            trimmed_hungarian += current_node_value;
+                        #endif
+                        //local_progress_accumulator += current_node_value;
+                    #endif
                     cur_solution.pop_back();
                     cur_cost -= cost_graph[src][dest.n].weight;
                     key.first[dest.n] = false;
                     key.second = last_element;
                     continue;
                 }
+
+                //if you don't prune a node, add it to the enumeration_list
                 cur_solution.pop_back();
                 cur_cost -= cost_graph[src][dest.n].weight;
                 enumeration_list.push_back(ready_list[i]);
@@ -174,14 +252,63 @@ void solver::enumerate(int i) {
                 enumeration_list.back().lb = temp_lb;
                 key.first[dest.n] = false;
                 key.second = last_element;
+                #if ENABLE_PROGRESS_ESTIMATION
+                    #if PROGRESS_ESTIMATION_USE_REMAINDER
+                        if (remaining_share > 0 && i < remaining_share) 
+                            remainder_not_pruned++;
+                    #endif
+                #endif
             }
         }
         sort(enumeration_list.begin(),enumeration_list.end(),bound_sort);
     }
 
+    // #if ENABLE_PROGRESS_ESTIMATION
+    //     unsigned long long should_be = local_progress_accumulator + enumeration_list.size()*current_node_value + remainder_not_pruned;
+    //     if (should_be != parent_node_value)
+    //     {
+    //         cout << "PROGRESS LEAK. " << should_be << " != " << parent_node_value << endl;
+    //         cout << "Current path: ";
+    //         for (int i : cur_solution)
+    //         {
+    //             cout << i << " ";
+    //         }
+    //         cout << endl;
+    //         cout << "Parent value: " << parent_node_value << endl;
+    //         cout << "Pruned: " << local_progress_accumulator << endl;
+    //         cout << "Size of enumeration list: " << enumeration_list.size() << endl;
+    //         cout << "Child value (floor): " << current_node_value << endl;
+    //         cout << "Remainder: " << remainder_not_pruned << endl;
+    //     }
+    // #endif
+
+    int child_num = 0; //the order of each child in this node's enumeration list, 0-indexed, to determine how to split inherited solution space
     while(!enumeration_list.empty()) {
+
+        #if ENABLE_PROGRESS_ESTIMATION
+            #if PROGRESS_ESTIMATION_USE_REMAINDER
+                if (remainder_not_pruned > 0) //if this node's share of the solution space cannot be evenly split between children
+                {
+                    if (child_num == 0) //the first X % Y children have their value increased by 1
+                        current_node_value++;
+                    else if (child_num == remainder_not_pruned) //the remaining children have a slightly lower value arbitrarily, guaranteeing that no share is lost by rounding
+                        current_node_value--;
+                }
+            #endif
+        #endif
         
-        if (enumeration_list.back().lb >= best_cost) {
+        if (enumeration_list.back().lb >= best_cost) { //you have to check again because best_cost may have changed
+            #if ENABLE_PROGRESS_ESTIMATION
+                #if PROGRESS_ESTIMATION_USE_REMAINDER
+                    unsigned long long tmp = trimmed_hungarian + current_node_value;
+                    if (tmp < trimmed_hungarian)
+                        hungarian_complete = true;
+                    trimmed_hungarian = tmp;
+                #else
+                    trimmed_hungarian += current_node_value;
+                #endif
+                //local_progress_accumulator += current_node_value;
+            #endif
             enumeration_list.pop_back();
             continue;
         }
@@ -202,8 +329,8 @@ void solver::enumerate(int i) {
         taken_arr[taken_node] = 1;
         full_solution = false;
         suffix_cost = 0;
-    
-        enumerate(i+1);
+
+        enumerate(depth+1);
 
         for (int vertex : dependent_graph[taken_node]) depCnt[vertex]++;
         taken_arr[taken_node] = 0;
@@ -221,6 +348,10 @@ void solver::enumerate(int i) {
         
        // cout << "assign to history table time: " << setprecision(4) << total_time / (float)(1000000) << endl;
     }
+    #if ENABLE_PROGRESS_ESTIMATION
+        current_node_value = parent_node_value;
+    #endif
+    child_num++;
     return;
 }
 
@@ -278,7 +409,35 @@ void solver::solve(string filename,long time_limit) {
     auto total_time = chrono::duration_cast<std::chrono::microseconds>( end_time - start_time ).count();
 
     cout << best_cost << "," << setprecision(4) << total_time / (float)(1000000) << endl;
+
     cout << "Total enumerated nodes are " << enumerated_nodes << endl;
+
+    #if ENABLE_PROGRESS_ESTIMATION
+        unsigned long long estimated_trimmed_percent = trimmed_backtracking + trimmed_history + trimmed_hungarian;
+        unsigned long long total_progress = estimated_trimmed_percent + leaf_percent;
+        #if PROGRESS_ESTIMATION_USE_REMAINDER
+            bool trim_complete = estimated_trimmed_percent < trimmed_backtracking || estimated_trimmed_percent < trimmed_history || estimated_trimmed_percent < trimmed_hungarian
+                                    || backtracking_complete || history_complete || hungarian_complete;
+            bool final_complete = total_progress < estimated_trimmed_percent || total_progress < leaf_percent
+                                    || trim_complete;
+            cout << "Total Enumerated Percent = "       << ((double) leaf_percent)/ULLONG_MAX*100 << "%" << endl;
+            cout << "Total Trimmed Percent = "          << (trim_complete ? 100 : ((double) estimated_trimmed_percent)/ULLONG_MAX*100) << "%" << endl;
+            cout << "Trimmed in Backtracking = "        << (backtracking_complete ? 100 : ((double) trimmed_backtracking)/ULLONG_MAX*100) << "%" << endl;
+            cout << "Trimmed from History Table = "     << (history_complete ? 100 : ((double) trimmed_history)/ULLONG_MAX*100) << "%" << endl;
+            cout << "Trimmed by Hungarian Algorithm = " << (hungarian_complete ? 100 : ((double) trimmed_hungarian)/ULLONG_MAX*100) << "%" << endl;
+            cout << "Total Progress = "                 << (final_complete ? 100 : ((double) total_progress)/ULLONG_MAX*100) << "%" << endl;
+            cout << estimated_trimmed_percent + leaf_percent << " / " << ULLONG_MAX << endl;
+        #else
+            cout << "Total Enumerated Percent = "       << ((double) leaf_percent)/ULLONG_MAX*100 << "%" << endl;
+            cout << "Total Trimmed Percent = "          << ((double) estimated_trimmed_percent)/ULLONG_MAX*100 << "%" << endl;
+            cout << "Trimmed in Backtracking = "        << ((double) trimmed_backtracking)/ULLONG_MAX*100 << "%" << endl;
+            cout << "Trimmed from History Table = "     << ((double) trimmed_history)/ULLONG_MAX*100 << "%" << endl;
+            cout << "Trimmed by Hungarian Algorithm = " << ((double) trimmed_hungarian)/ULLONG_MAX*100 << "%" << endl;
+            cout << "Total Progress = "                 << ((double) total_progress)/ULLONG_MAX*100 << "%" << endl;
+            cout << estimated_trimmed_percent + leaf_percent << " / " << ULLONG_MAX << endl;
+        #endif
+    #endif
+
     //history_table.average_size();
     //cout << "Total Time Spent On HistoryUtilization Calls is " << wait_time << " s" << endl;
     //cout << "Total Number Of HistoryUtilization Calls is " << num_of_hiscall << endl;

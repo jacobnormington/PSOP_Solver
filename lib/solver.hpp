@@ -22,9 +22,9 @@ class edge {
 
 class node {
     public:
-        int n;
-        int lb;
-        int nc;
+        int n; //node number
+        int lb; //lower bound cost of this node
+        int nc; //cost to get from the parent to this node
         node(int x, int y, int z): n{x},lb{y},nc{z} {}
 };
 
