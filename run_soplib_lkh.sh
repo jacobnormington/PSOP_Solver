@@ -3,6 +3,7 @@
 # delete the files to output values to
 start=1				# set to 1 in order to start from the beginning
 starting_instance="R.300.1000.15.sop"
+dataset=0					# which instances to consider: 1 to exclude very hard instances, 0 for all instances, -1 for only very hard instances
 num_threads=32 		# check 8, 16, 32
 enable=1			# 1 for enabling LKH thread, 0 for disabled
 if [[ $enable == 1 ]]; then
@@ -31,16 +32,23 @@ for str in $(ls soplib);
 do
 	if [[ $start == 1 ]]; then
 		if [[ ${str: -6:2} != "BB" ]]; then #ignore the old B&B files that don't have necessary header data
-			if [[ !($str != "R.400.1000.1.sop" && $str != "R.600.1000.1.sop" && $str != "R.600.1000.15.sop" && $str != "R.700.1000.1.sop" && $str != "R.700.1000.15.sop") ]]; then
+			if [[ 	$dataset == 0 ||
+					($dataset > 0 && ($str != "R.400.1000.1.sop" && $str != "R.600.1000.1.sop" && $str != "R.600.1000.15.sop" && $str != "R.700.1000.1.sop" 
+						&& $str != "R.700.1000.15.sop")) ||
+					($dataset < 0 && !($str != "R.400.1000.1.sop" && $str != "R.600.1000.1.sop" && $str != "R.600.1000.15.sop" && $str != "R.700.1000.1.sop" 
+						&& $str != "R.700.1000.15.sop"))
+				]]; then
 				echo $str >> outfile.log
 				output=$(./sop_solver soplib/$str $num_threads $config)
 				echo "$str" >> outfile_raw.log
 				echo "$output" >> outfile_raw.log
-				exit_status=$?
+
 				if [[ $( echo "$output" | egrep -o "instance timed out" ) != "" ]]; then # test times out
 					echo TIMED OUT >> outfile.log
-				elif [[ $( echo $output | egrep -o "[[:digit:]]+,[[:digit:]]+(.[[:digit:]]+)?" ) != "" ]]; then # test produces usable timing data
-					echo $output | egrep -o "[[:digit:]]+,[[:digit:]]+(.[[:digit:]]+)?" >> outfile.log 
+				elif [[ $( echo $output | egrep -o "[[:digit:]]+,[[:digit:]]+(.[[:digit:]]+)?" ) == "" ]]; then # time and cost not printed at the end
+					echo NO TIMING DATA >> outfile.log
+				else # output timing data to file
+					echo $output | egrep -o "[[:digit:]]+,[[:digit:]]+(.[[:digit:]]+)?" >> outfile.log # add " | cut -d, -f2" to find only the time
 				fi
 
 				if [[ $( echo $output | egrep -o "Total Progress = 100%" ) == "" ]]; then # if test doesn't end in 100% progress
