@@ -215,7 +215,7 @@ struct sop_state {
     pair<boost::dynamic_bitset<>,int> key;
     HistoryNode* cur_parent_hisnode = NULL;
     int cur_cost = 0;
-    int initial_depth = 0; //number of nodes in the current path
+    int initial_depth = 0; //depth at which enumeration began once GPQ was initially filled
     int suffix_cost = 0;
     ////////////////////
     int originate = -1;
@@ -287,7 +287,7 @@ class solver {
 
         /* Called from solver::solve, divides work among global pool and each thread, and begins the threads with calls to solver::enumerate. */
         void solve_parallel(int thread_num, int pool_size); 
-        /* Returns true if any solver has a depth different than target_level, false otherwise. */
+        /* Returns true if any solver has a depth different than any other, false otherwise. */
         bool Split_level_check(deque<sop_state>* solver_container);
 
         /* Recursive function that each thread runs to process its assigned sections of the enumeration tree. */
@@ -308,7 +308,8 @@ class solver {
         /* Build a hungarian solver state based upon the problem_state. Used in Generate_SolverState. */
         void regenerate_hungstate();
 
-        /* Moves a node into a global or local pool. Returns true if the node was added, false if the node was pruned. */
+        /* Moves a node into a global or local pool. Returns true if the node was added, false if the node was pruned. 
+            Progress tracking for pruned nodes is done internally. */
         bool assign_workload(node& transfer_wlkload, pool_dest destination, space_ranking problem_property, HistoryNode* temp_hisnode);
         /* Push all nodes from this thread's local pool into a global pool. */
         bool push_to_pool(pool_dest decision, space_ranking problem_property);
@@ -339,7 +340,7 @@ class solver {
             bool Steal_Workload();
             /* Idle thread randomly chooses a victim thread and takes some nodes from its local_pool to the wrksteal_pool. */
             void transfer_wlkload();
-            void check_workload_request(int i);
+            //void check_workload_request(int i);
 
         //Thread Stopping
             /* For Thread Stopping. Check the request buffer. */
