@@ -2,9 +2,9 @@
 
 # delete the files to output values to
 start=0 					# set to 1 in order to start from the beginning
-startInstance="ESC78.sop"	# instance before the start
+startInstance="ft70.1.sop"	# instance before the start
 endInstance=""				# instance after the end
-dataset=0					# which instances to consider: 1 to exclude very hard instances, 0 for all instances, -1 for only very hard instances
+dataset=-1					# which instances to consider: 1 to exclude very hard instances, 0 for all instances, -1 for only very hard instances
 num_threads=32 				# check 8, 16, 32
 enable=1					# 1 for enabling LKH thread, 0 for disabled
 if [[ $enable == 1 ]]; then
@@ -48,11 +48,11 @@ do
 					&& $str != "rbg143a.sop" && $str != "rbg148a.sop" && $str != "rbg161a.sop" && $str != "rbg190a.sop" && $str != "rbg219a.sop" && $str != "rbg247a.sop"
 					&& $str != "rbg285a.sop") ]]; then # skip instances that only have LKH-structured data files
 					if [[ 	$dataset == 0 ||
-							($dataset > 0 && ($str != "ESC78.sop" && $str != "ft53.1.sop" && $str != "ft53.2.sop" && $str != "ft53.3.sop" && $str != "ft70.1.sop" && $str != "ft70.2.sop" 
+							($dataset -gt "0" && ($str != "ESC78.sop" && $str != "ft53.1.sop" && $str != "ft53.2.sop" && $str != "ft53.3.sop" && $str != "ft70.1.sop" && $str != "ft70.2.sop" 
 								&& $str != "ft70.3.sop" && $str != "kro124p.1.sop" && $str != "kro124p.2.sop" && $str != "kro124p.3.sop" && $str != "kro124p.4.sop" && $str != "p43.1.sop" 
 								&& $str != "p43.2.sop" && $str != "prob.100.sop" && $str != "rbg323a.sop" && $str != "rbg341a.sop" && $str != "rbg358a.sop" && $str != "rbg378a.sop" 
 								&& $str != "ry48p.1.sop" && $str != "ry48p.2.sop" && $str != "ry48p.3.sop")) ||
-							($dataset < 0 && !($str != "ESC78.sop" && $str != "ft53.1.sop" && $str != "ft53.2.sop" && $str != "ft53.3.sop" && $str != "ft70.1.sop" && $str != "ft70.2.sop" 
+							($dataset -lt "0" && !($str != "ESC78.sop" && $str != "ft53.1.sop" && $str != "ft53.2.sop" && $str != "ft53.3.sop" && $str != "ft70.1.sop" && $str != "ft70.2.sop" 
 								&& $str != "ft70.3.sop" && $str != "kro124p.1.sop" && $str != "kro124p.2.sop" && $str != "kro124p.3.sop" && $str != "kro124p.4.sop" && $str != "p43.1.sop" 
 								&& $str != "p43.2.sop" && $str != "prob.100.sop" && $str != "rbg323a.sop" && $str != "rbg341a.sop" && $str != "rbg358a.sop" && $str != "rbg378a.sop" 
 								&& $str != "ry48p.1.sop" && $str != "ry48p.2.sop" && $str != "ry48p.3.sop"))
