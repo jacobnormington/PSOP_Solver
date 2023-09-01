@@ -24,9 +24,9 @@ do
 		fi 
 
 		if [[ 	$dataset == 0 ||
-				($dataset > 0 && ($str != "R.400.1000.1.sop" && $str != "R.600.1000.1.sop" && $str != "R.600.1000.15.sop" && $str != "R.700.1000.1.sop" 
+				($dataset -gt 0 && ($str != "R.400.1000.1.sop" && $str != "R.600.1000.1.sop" && $str != "R.600.1000.15.sop" && $str != "R.700.1000.1.sop" 
 					&& $str != "R.700.1000.15.sop")) ||
-				($dataset < 0 && !($str != "R.400.1000.1.sop" && $str != "R.600.1000.1.sop" && $str != "R.600.1000.15.sop" && $str != "R.700.1000.1.sop" 
+				($dataset -lt 0 && !($str != "R.400.1000.1.sop" && $str != "R.600.1000.1.sop" && $str != "R.600.1000.15.sop" && $str != "R.700.1000.1.sop" 
 					&& $str != "R.700.1000.15.sop"))
 			]]; then # dont skip the instances that always timeout on 32 threads
 			echo $str >> outfile.log
