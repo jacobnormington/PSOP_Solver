@@ -38,7 +38,8 @@ using namespace std;
 static float exploitation_per = 0;
 static int group_sample_time = -1;
 static vector<int_64> selectT_arr;
-static float inhis_mem_limit = -1;
+static float inhis_mem_limit = -1; //taken from config file, 0-1, the percentage of memory usage beyond which new entries shouldn't be added to the history table
+static int inhis_depth = -1; //taken from config file, after inhis_mem_limit exceeded, will still add an entry if the current depth is less than inhis_depth
 
 int* bestBB_tour = NULL;
 int best_cost = INT_MAX;
@@ -177,25 +178,28 @@ void solver::assign_parameter(vector<string> setting) {
     inhis_mem_limit = atof(setting[3].c_str());
     cout << "History table mem limit = " << inhis_mem_limit << endl;
 
-    exploitation_per = atof(setting[4].c_str())/float(100);
+    inhis_depth = atof(setting[4].c_str());
+    cout << "History table depth to always add = " << inhis_depth << endl;
+
+    exploitation_per = atof(setting[5].c_str())/float(100);
     cout << "Restart exploitation/exploration ratio is " << exploitation_per << endl;
 
-    group_sample_time = atoi(setting[5].c_str());
+    group_sample_time = atoi(setting[6].c_str());
     cout << "Group sample time = " << group_sample_time << endl;
     
-    tgroup_ratio = atoi(setting[6].c_str());
+    tgroup_ratio = atoi(setting[7].c_str());
     cout << "Number of promising thread per exploitation group = " << tgroup_ratio << endl;
 
-    if (!atoi(setting[7].c_str())) enable_workstealing = false;
+    if (!atoi(setting[8].c_str())) enable_workstealing = false;
     else enable_workstealing = true;
 
-    if (!atoi(setting[8].c_str())) enable_threadstop = false;
+    if (!atoi(setting[9].c_str())) enable_threadstop = false;
     else enable_threadstop = true;
 
-    if (!atoi(setting[9].c_str())) enable_lkh = false;
+    if (!atoi(setting[10].c_str())) enable_lkh = false;
     else enable_lkh = true;
 
-    if (!atoi(setting[10].c_str())) enable_progress_estimation = false;
+    if (!atoi(setting[11].c_str())) enable_progress_estimation = false;
     else enable_progress_estimation = true;
 
     return;
@@ -1431,7 +1435,8 @@ void solver::enumerate() {
 
                 if (!taken) { //if there is no similar entry in the history table
                     lower_bound = dynamic_hungarian(src,dest.n);
-                    if (history_table.get_cur_size() < inhis_mem_limit * history_table.get_max_size()) push_to_historytable(problem_state.key,lower_bound,&his_node,false);
+                    if (history_table.get_cur_size() < inhis_mem_limit * history_table.get_max_size() || problem_state.cur_solution.size() < inhis_depth) 
+                        push_to_historytable(problem_state.key,lower_bound,&his_node,false);
                     else limit_insertion = true;
                     problem_state.hungarian_solver.undue_row(src,dest.n);
                     problem_state.hungarian_solver.undue_column(dest.n,src);
@@ -1577,7 +1582,7 @@ void solver::enumerate() {
             last_node = -1;
         }
         
-        if (limit_insertion && history_table.get_cur_size() < history_table.get_max_size()) {
+        if (limit_insertion && history_table.get_cur_size() < history_table.get_max_size() && problem_state.cur_solution.size() >= inhis_depth) { //don't add if it was already added
             push_to_historytable(problem_state.key,lb_liminsert,NULL,false);
         }
 

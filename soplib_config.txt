@@ -10,6 +10,9 @@ Level = 250
 //Memory_Restriction (in % from 0 - 1)
 Restrict_Per = 0.8
 
+//History table entry will always be added if depth is below this value
+History_depth = 100
+
 //Restart Exploitation/Exploration [%]
 Ratio = 50
 
